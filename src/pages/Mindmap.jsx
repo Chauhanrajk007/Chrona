@@ -57,9 +57,9 @@ export default function Mindmap() {
                     position: { x: 0, y: 0 },
                     data: { label: '🧠 You' },
                     style: {
-                        background: 'linear-gradient(135deg, #6c5ce7, #a29bfe)',
+                        background: 'linear-gradient(135deg, #2d9f8f, #3bbfa7)',
                         color: '#fff',
-                        border: '2px solid #a29bfe',
+                        border: '2px solid #3bbfa7',
                         borderRadius: '50%',
                         width: 80,
                         height: 80,
@@ -68,7 +68,7 @@ export default function Mindmap() {
                         justifyContent: 'center',
                         fontSize: '16px',
                         fontWeight: 700,
-                        boxShadow: '0 0 30px #6c5ce740',
+                        boxShadow: '0 0 30px #2d9f8f40',
                     },
                     draggable: true,
                 },
@@ -88,9 +88,9 @@ export default function Mindmap() {
             position: { x: 0, y: 0 },
             data: { label: '🧠 You' },
             style: {
-                background: 'linear-gradient(135deg, #6c5ce7, #a29bfe)',
+                background: 'linear-gradient(135deg, #2d9f8f, #3bbfa7)',
                 color: '#fff',
-                border: '2px solid #a29bfe',
+                border: '2px solid #3bbfa7',
                 borderRadius: '50%',
                 width: 80,
                 height: 80,
@@ -99,7 +99,7 @@ export default function Mindmap() {
                 justifyContent: 'center',
                 fontSize: '16px',
                 fontWeight: 700,
-                boxShadow: '0 0 30px #6c5ce740',
+                boxShadow: '0 0 30px #2d9f8f40',
             },
             draggable: true,
         })
@@ -194,11 +194,11 @@ export default function Mindmap() {
     if (loading) {
         return (
             <div className="min-h-[calc(100vh-64px)] flex items-center justify-center">
-                <div className="text-center animate-pulse-slow">
-                    <div className="w-16 h-16 mx-auto rounded-full bg-neuravex-accent/20 flex items-center justify-center mb-4">
-                        <span className="text-2xl">🧠</span>
+                <div className="text-center animate-pulse bg-neuravex-bg p-8 border-4 border-neuravex-border shadow-neo transform rotate-1">
+                    <div className="w-16 h-16 mx-auto bg-neuravex-accent flex items-center justify-center mb-4 border-2 border-neuravex-border shadow-neo-sm transform -rotate-3">
+                        <span className="text-2xl font-black">🧠</span>
                     </div>
-                    <p className="text-neuravex-muted text-sm">Loading your mindmap...</p>
+                    <p className="text-neuravex-text text-sm font-black uppercase tracking-widest font-mono">Loading Space...</p>
                 </div>
             </div>
         )
@@ -207,8 +207,9 @@ export default function Mindmap() {
     if (error) {
         return (
             <div className="min-h-[calc(100vh-64px)] flex items-center justify-center">
-                <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-6 max-w-md text-center">
-                    <p className="text-red-400 text-sm">{error}</p>
+                <div className="bg-neuravex-pink border-4 border-neuravex-border shadow-neo p-6 max-w-md text-center transform -rotate-1">
+                    <h2 className="text-neuravex-bg font-black uppercase text-xl mb-2">System Error</h2>
+                    <p className="text-neuravex-bg text-sm font-bold font-mono">{error}</p>
                 </div>
             </div>
         )
@@ -217,24 +218,24 @@ export default function Mindmap() {
     return (
         <div className="h-[calc(100vh-64px)] relative">
             {/* Event count badge */}
-            <div className="absolute top-4 left-4 z-10 bg-neuravex-card/80 backdrop-blur-md border border-neuravex-border rounded-lg px-3 py-2 flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-neuravex-accent animate-pulse" />
-                <span className="text-xs text-neuravex-muted">
-                    <span className="font-semibold text-neuravex-text">{events.length}</span> events
+            <div className="absolute top-4 left-4 z-10 bg-neuravex-bg border-4 border-neuravex-border px-3 py-2 flex items-center gap-2 shadow-neo-sm transform -rotate-2">
+                <div className="w-3 h-3 bg-neuravex-accent border-2 border-neuravex-border shadow-neo-sm animate-pulse" />
+                <span className="text-xs font-mono font-bold text-neuravex-text tracking-widest uppercase">
+                    {events.length} events
                 </span>
             </div>
 
             {/* Legend */}
-            <div className="absolute bottom-4 left-4 z-10 bg-neuravex-card/80 backdrop-blur-md border border-neuravex-border rounded-lg px-3 py-2 space-y-1">
+            <div className="absolute bottom-4 left-4 z-10 bg-neuravex-bg border-4 border-neuravex-border p-3 space-y-2 shadow-neo-sm transform rotate-1">
                 {[
-                    { label: 'Critical', color: '#dc2626' },
-                    { label: 'High', color: '#ea580c' },
-                    { label: 'Medium', color: '#eab308' },
-                    { label: 'Low', color: '#22c55e' },
+                    { label: 'Critical', color: '#e8a838' }, // Amber
+                    { label: 'High', color: '#3bbfa7' },    // Teal
+                    { label: 'Medium', color: '#5ce0c8' },  // Light teal
+                    { label: 'Low', color: '#2d9f8f' },     // Dark teal
                 ].map((item) => (
                     <div key={item.label} className="flex items-center gap-2">
-                        <div className="w-2.5 h-2.5 rounded-full" style={{ background: item.color }} />
-                        <span className="text-[10px] text-neuravex-muted">{item.label}</span>
+                        <div className="w-4 h-4 border-2 border-neuravex-border shadow-neo-sm" style={{ background: item.color }} />
+                        <span className="text-xs font-mono font-bold uppercase text-neuravex-text tracking-wider">{item.label}</span>
                     </div>
                 ))}
             </div>
@@ -250,17 +251,25 @@ export default function Mindmap() {
                 minZoom={0.3}
                 maxZoom={2}
                 proOptions={{ hideAttribution: true }}
+                className="bg-transparent"
             >
-                <Background color="#1a1a2e" gap={30} size={1} />
-                <Controls />
+                <Background color="#2d9f8f" gap={32} size={2} variant="dots" />
+                <Controls className="react-flow-controls-neo" style={{
+                    backgroundColor: '#0d2b2b', border: '2px solid #2d9f8f', borderRadius: '0', boxShadow: '4px 4px 0 #2d9f8f'
+                }} />
                 <MiniMap
-                    nodeColor={(node) => {
-                        if (node.id === 'center') return '#6c5ce7'
-                        const event = node.data?.event
-                        if (!event) return '#2a2a3e'
-                        return getPriorityColor(getPriorityScore(event)).border
+                    nodeStrokeColor={(n) => {
+                        if (n.type === 'categoryNode') return n.data.color?.border || '#eee'
+                        if (n.type === 'eventNode') return n.data.event?.color?.border || '#eee'
+                        return '#e8a838'
                     }}
-                    maskColor="#0a0a0f90"
+                    nodeColor={(n) => {
+                        if (n.type === 'categoryNode') return n.data.color?.bg || '#fff'
+                        if (n.type === 'eventNode') return n.data.event?.color?.bg || '#fff'
+                        return '#0d2b2b'
+                    }}
+                    nodeBorderRadius={0}
+                    style={{ backgroundColor: '#143838', border: '4px solid #2d9f8f', borderRadius: '0', boxShadow: '4px 4px 0 #2d9f8f' }}
                 />
             </ReactFlow>
         </div>

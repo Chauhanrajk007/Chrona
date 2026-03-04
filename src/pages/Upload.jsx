@@ -59,45 +59,46 @@ export default function Upload() {
             setFile(e.dataTransfer.files[0])
         }
     }
-
     return (
         <div className="min-h-[calc(100vh-64px)] flex items-center justify-center p-6">
-            <div className="w-full max-w-xl animate-fade-in">
+            <div className="w-full max-w-xl animate-fade-in bg-neuravex-bg border-4 border-neuravex-border shadow-neo p-8 relative">
+
+                {/* Decorative Top Accent Line */}
+                <div className="absolute top-0 left-0 w-full h-2 bg-neuravex-accent" />
+
                 {/* Header */}
-                <div className="text-center mb-8">
-                    <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-neuravex-accent/10 border border-neuravex-accent/30 mb-4 animate-float">
-                        <svg className="w-8 h-8 text-neuravex-accent-light" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
-                        </svg>
+                <div className="mb-8">
+                    <div className="inline-block px-3 py-1 bg-neuravex-surface border-2 border-neuravex-border text-neuravex-accent font-mono text-xs font-bold uppercase tracking-widest mb-4 shadow-neo-sm transform -rotate-2">
+                        System Upload
                     </div>
-                    <h1 className="text-3xl font-bold bg-gradient-to-r from-neuravex-accent-light to-purple-400 bg-clip-text text-transparent">
-                        Upload Event
+                    <h1 className="text-4xl sm:text-5xl font-black uppercase text-neuravex-text tracking-tighter mb-2" style={{ textShadow: '3px 3px 0px #2d9f8f' }}>
+                        Add Event
                     </h1>
-                    <p className="text-neuravex-muted mt-2 text-sm">
-                        Paste text, drop a PDF, or upload an image — Neuravex will do the rest.
+                    <p className="text-neuravex-text font-mono text-sm border-l-4 border-neuravex-accent pl-3 mt-4 bg-neuravex-surface p-2 shadow-neo-sm">
+                        Paste text, drop a PDF, or upload an image.
                     </p>
                 </div>
 
-                <form onSubmit={handleSubmit} className="space-y-5">
+                <form onSubmit={handleSubmit} className="space-y-6">
                     {/* Text input */}
-                    <div>
-                        <label htmlFor="event-text" className="block text-xs font-medium text-neuravex-muted uppercase tracking-wider mb-2">
-                            Event Description
+                    <div className="relative">
+                        <label htmlFor="event-text" className="absolute -top-3 left-4 bg-neuravex-bg px-2 text-xs font-bold text-neuravex-accent-light uppercase tracking-wider z-10 border-x-2 border-t-2 border-neuravex-border">
+                            Description
                         </label>
                         <textarea
                             id="event-text"
                             rows={4}
                             value={text}
                             onChange={(e) => setText(e.target.value)}
-                            placeholder='e.g. "Math exam tomorrow at 4 PM in Room 201"'
-                            className="w-full bg-neuravex-surface border border-neuravex-border rounded-xl p-4 text-neuravex-text placeholder-neuravex-muted/50 focus:outline-none focus:border-neuravex-accent focus:ring-1 focus:ring-neuravex-accent/30 transition-all resize-none font-mono text-sm"
+                            placeholder='e.g. "Math exam tomorrow 4 PM"'
+                            className="w-full bg-neuravex-surface border-2 border-neuravex-border p-4 text-neuravex-text placeholder-neuravex-muted focus:outline-none focus:border-neuravex-accent shadow-neo transition-all resize-none font-mono text-sm relative z-0"
                         />
                     </div>
 
                     {/* File upload */}
-                    <div>
-                        <label className="block text-xs font-medium text-neuravex-muted uppercase tracking-wider mb-2">
-                            Upload File
+                    <div className="relative mt-8">
+                        <label className="absolute -top-3 left-4 bg-neuravex-bg px-2 text-xs font-bold text-neuravex-pink uppercase tracking-wider z-10 border-x-2 border-t-2 border-neuravex-border">
+                            File Upload
                         </label>
                         <div
                             onDragEnter={handleDrag}
@@ -106,10 +107,10 @@ export default function Upload() {
                             onDrop={handleDrop}
                             onClick={() => fileInputRef.current?.click()}
                             className={`
-                relative border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all duration-300
+                relative border-2 border-dashed p-8 text-center cursor-pointer transition-all duration-200 shadow-neo
                 ${dragActive
-                                    ? 'border-neuravex-accent bg-neuravex-accent/5 scale-[1.02]'
-                                    : 'border-neuravex-border hover:border-neuravex-accent/50 hover:bg-neuravex-surface'
+                                    ? 'border-neuravex-accent bg-neuravex-accent/10 translate-y-[-2px]'
+                                    : 'border-neuravex-border hover:border-neuravex-accent hover:bg-neuravex-surface hover:-translate-y-1'
                                 }
               `}
                         >
@@ -122,13 +123,15 @@ export default function Upload() {
                             />
 
                             {file ? (
-                                <div className="flex items-center justify-center gap-3">
-                                    <div className="w-10 h-10 rounded-lg bg-neuravex-accent/20 flex items-center justify-center">
-                                        <span className="text-lg">📄</span>
-                                    </div>
-                                    <div className="text-left">
-                                        <p className="text-sm font-medium text-neuravex-text">{file.name}</p>
-                                        <p className="text-xs text-neuravex-muted">{(file.size / 1024).toFixed(1)} KB</p>
+                                <div className="flex items-center justify-between bg-neuravex-bg border-2 border-neuravex-border p-3 shadow-neo-sm">
+                                    <div className="flex items-center gap-3 text-left">
+                                        <div className="w-10 h-10 bg-neuravex-surface border-2 border-neuravex-border flex items-center justify-center font-bold text-neuravex-accent">
+                                            📄
+                                        </div>
+                                        <div>
+                                            <p className="text-sm font-bold text-neuravex-text truncate max-w-[200px]">{file.name}</p>
+                                            <p className="text-xs text-neuravex-muted font-mono">{(file.size / 1024).toFixed(1)} KB</p>
+                                        </div>
                                     </div>
                                     <button
                                         type="button"
@@ -137,21 +140,22 @@ export default function Upload() {
                                             setFile(null)
                                             if (fileInputRef.current) fileInputRef.current.value = ''
                                         }}
-                                        className="ml-2 text-neuravex-muted hover:text-red-400 transition-colors"
+                                        className="w-8 h-8 flex items-center justify-center bg-neuravex-pink border-2 border-neuravex-border text-neuravex-bg font-bold hover:bg-red-500 shadow-neo-sm hover:translate-y-[2px] transition-all"
                                     >
                                         ✕
                                     </button>
                                 </div>
                             ) : (
-                                <>
-                                    <svg className="mx-auto w-10 h-10 text-neuravex-muted/50 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m6.75 12l-3-3m0 0l-3 3m3-3v6m-1.5-15H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
-                                    </svg>
-                                    <p className="text-sm text-neuravex-muted">
-                                        Drop a <span className="text-neuravex-accent-light font-medium">PDF</span> or{' '}
-                                        <span className="text-neuravex-accent-light font-medium">Image</span> here, or click to browse
+                                <div className="space-y-4">
+                                    <div className="w-12 h-12 mx-auto bg-neuravex-surface border-2 border-neuravex-border flex items-center justify-center shadow-neo-sm transform rotate-6">
+                                        <svg className="w-6 h-6 text-neuravex-text" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M12 3v13.5m0-13.5l-4.5 4.5m4.5-4.5l4.5 4.5" />
+                                        </svg>
+                                    </div>
+                                    <p className="text-sm font-bold text-neuravex-text font-mono uppercase">
+                                        Drop <span className="text-neuravex-pink">PDF</span> or <span className="text-neuravex-pink">Image</span>
                                     </p>
-                                </>
+                                </div>
                             )}
                         </div>
                     </div>
@@ -160,15 +164,12 @@ export default function Upload() {
                     <button
                         type="submit"
                         disabled={loading}
-                        className="w-full py-3.5 rounded-xl font-semibold text-sm transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed bg-gradient-to-r from-neuravex-accent to-purple-500 hover:from-purple-500 hover:to-neuravex-accent text-white shadow-lg shadow-neuravex-accent/20 hover:shadow-neuravex-accent/40 hover:scale-[1.02] active:scale-[0.98]"
+                        className="w-full py-4 mt-4 bg-neuravex-accent border-4 border-neuravex-border font-black text-neuravex-bg uppercase tracking-widest text-lg shadow-neo transition-all hover:-translate-y-1 active:translate-y-1 active:shadow-none disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-neo"
                     >
                         {loading ? (
-                            <span className="flex items-center justify-center gap-2">
-                                <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
-                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                                </svg>
-                                Processing...
+                            <span className="flex items-center justify-center gap-2 font-mono">
+                                <div className="w-4 h-4 rounded-sm bg-neuravex-bg animate-pulse" />
+                                PROCESSING...
                             </span>
                         ) : (
                             'Process Event'
@@ -178,9 +179,9 @@ export default function Upload() {
                     {/* Status Message */}
                     {status && (
                         <div
-                            className={`p-4 rounded-xl text-sm font-medium text-center animate-slide-up ${status.type === 'success'
-                                ? 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-400'
-                                : 'bg-red-500/10 border border-red-500/30 text-red-400'
+                            className={`p-4 border-4 text-sm font-bold uppercase tracking-wider text-center animate-slide-up shadow-neo-sm ${status.type === 'success'
+                                ? 'bg-neuravex-border border-emerald-400 text-emerald-400'
+                                : 'bg-neuravex-border border-neuravex-pink text-neuravex-pink'
                                 }`}
                         >
                             {status.message}

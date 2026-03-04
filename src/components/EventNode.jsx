@@ -9,11 +9,10 @@ export default function EventNode({ data }) {
 
     return (
         <div
-            className="relative px-4 py-3 rounded-xl min-w-[180px] max-w-[220px] backdrop-blur-md transition-all duration-300 hover:scale-105 cursor-pointer group"
+            className="relative px-4 py-3 min-w-[180px] max-w-[220px] transition-all duration-300 hover:-translate-y-1 cursor-pointer group bg-neuravex-bg"
             style={{
-                background: color.bg,
-                border: `1.5px solid ${color.border}`,
-                boxShadow: `0 0 20px ${color.border}30, 0 4px 12px rgba(0,0,0,0.4)`,
+                border: `3px solid ${color.border}`,
+                boxShadow: `4px 4px 0 ${color.border}`,
             }}
         >
             <Handle
@@ -24,35 +23,33 @@ export default function EventNode({ data }) {
 
             {/* Priority badge */}
             <div
-                className="absolute -top-2 -right-2 w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold"
-                style={{ background: color.border, color: '#0a0a0f' }}
+                className="absolute -top-3 -right-3 w-8 h-8 flex items-center justify-center text-xs font-black font-mono border-2"
+                style={{
+                    background: color.border,
+                    color: '#0d2b2b',
+                    borderColor: '#0d2b2b'
+                }}
             >
                 {score}
             </div>
 
             {/* Title */}
-            <h3 className="text-sm font-semibold truncate" style={{ color: color.text }}>
+            <h3 className="text-sm font-black uppercase truncate tracking-tight" style={{ color: color.border }}>
                 {event.title}
             </h3>
 
             {/* Date */}
-            <p className="text-[11px] mt-1 opacity-70 font-mono" style={{ color: color.text }}>
+            <p className="text-[11px] mt-1 font-mono font-bold" style={{ color: '#ffffff' }}>
                 {dayjs(event.event_datetime).format('MMM D, h:mm A')}
             </p>
 
             {/* Category */}
             <span
-                className="inline-block mt-2 px-2 py-0.5 rounded-full text-[10px] font-medium uppercase tracking-wider"
-                style={{ background: `${color.border}30`, color: color.text }}
+                className="inline-block mt-3 px-2 py-0 border-2 text-[10px] font-black uppercase tracking-widest bg-neuravex-surface shadow-neo-sm transform -rotate-2"
+                style={{ borderColor: color.border, color: color.border }}
             >
                 {event.category}
             </span>
-
-            {/* Hover glow */}
-            <div
-                className="absolute inset-0 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"
-                style={{ boxShadow: `inset 0 0 20px ${color.border}20` }}
-            />
 
             <Handle
                 type="source"

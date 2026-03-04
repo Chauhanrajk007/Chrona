@@ -74,18 +74,22 @@ export default function OpeningAnimation({ onComplete }) {
 
             {/* The animated blocks layer */}
             <div className="absolute inset-0 z-10 flex w-full h-full pointer-events-none">
-                {blocks.map((_, i) => (
-                    <div
-                        key={i}
-                        ref={(el) => (blocksRef.current[i] = el)}
-                        // Based on cg-art-tech-nav: blue (#2f24f2) or the brand purple
-                        className="flex-1 h-full bg-[#2f24f2]"
-                        style={{
-                            marginRight: '-1px', // Prevent weird 1px gaps between blocks
-                            clipPath: 'polygon(0 0, 100% 0, 100% 100%, 0 100%)' // Full height initially
-                        }}
-                    />
-                ))}
+                {blocks.map((_, i) => {
+                    // Light green shades for the opening animation
+                    const greenShades = ['#90EE90', '#7CDB7C', '#68C868', '#55B555', '#90EE90', '#7CDB7C', '#68C868', '#55B555']
+                    return (
+                        <div
+                            key={i}
+                            ref={(el) => (blocksRef.current[i] = el)}
+                            className="flex-1 h-full"
+                            style={{
+                                backgroundColor: greenShades[i % greenShades.length],
+                                marginRight: '-1px',
+                                clipPath: 'polygon(0 0, 100% 0, 100% 100%, 0 100%)'
+                            }}
+                        />
+                    )
+                })}
             </div>
         </div>
     )

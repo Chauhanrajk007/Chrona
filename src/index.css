@@ -8,60 +8,61 @@
   box-sizing: border-box;
 }
 
-body {
-  font-family: 'Inter', system-ui, sans-serif;
-  background-color: #0a0a0f;
-  color: #e8e8f0;
-  min-height: 100vh;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
-body.no-scroll {
-  overflow: hidden;
-}
-
-/* Custom scrollbar */
+/* Custom scrollbar - Neo Brutalist */
 ::-webkit-scrollbar {
-  width: 6px;
+  width: 14px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #12121a;
+  background: #0d2b2b;
+  border-left: 2px solid #2d9f8f;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #2a2a3e;
-  border-radius: 3px;
+  background: #3bbfa7;
+  border: 2px solid #2d9f8f;
+  border-radius: 0;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #6c5ce7;
+  background: #5ce0c8;
+}
+
+/* Base Body styling */
+body {
+  font-family: 'Space Grotesk', 'Inter', system-ui, sans-serif;
+  background-color: #0d2b2b;
+  color: #ffffff;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-image: radial-gradient(#ffffff10 1px, transparent 1px);
+  background-size: 24px 24px;
 }
 
 /* React Flow overrides */
 .react-flow__background {
-  background-color: #0a0a0f !important;
+  background-color: #0d2b2b !important;
 }
 
 .react-flow__controls button {
-  background-color: #1a1a2e !important;
-  border: 1px solid #2a2a3e !important;
-  color: #e8e8f0 !important;
-  fill: #e8e8f0 !important;
+  background-color: #143838 !important;
+  border: 1px solid #2d9f8f !important;
+  color: #e8f0ef !important;
+  fill: #e8f0ef !important;
 }
 
 .react-flow__controls button:hover {
-  background-color: #2a2a3e !important;
+  background-color: #1a4a4a !important;
 }
 
 .react-flow__minimap {
-  background-color: #12121a !important;
-  border: 1px solid #2a2a3e !important;
+  background-color: #0d2b2b !important;
+  border: 1px solid #2d9f8f !important;
   border-radius: 8px !important;
 }
 
 .react-flow__edge path {
-  stroke: #6c5ce760 !important;
+  stroke: #3bbfa760 !important;
   stroke-width: 2 !important;
 }

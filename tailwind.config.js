@@ -12,21 +12,26 @@ export default {
             },
             colors: {
                 neuravex: {
-                    bg: '#0a0a0f',
-                    surface: '#12121a',
-                    card: '#1a1a2e',
-                    border: '#2a2a3e',
-                    accent: '#6c5ce7',
-                    'accent-light': '#a29bfe',
-                    glow: '#6c5ce740',
-                    text: '#e8e8f0',
-                    muted: '#8888a0',
+                    bg: '#0d2b2b',        // Deep dark teal background
+                    surface: '#143838',   // Slightly lighter teal for cards
+                    card: '#1a4a4a',      // Lighter teal for nested elements
+                    border: '#2d9f8f',    // Teal borders
+                    accent: '#3bbfa7',    // Teal-green accent (Primary)
+                    'accent-light': '#5ce0c8', // Light teal accent (Secondary)
+                    pink: '#e8a838',      // Warm amber for critical/active states
+                    text: '#ffffff',
+                    muted: '#8fbfb5',
                 },
+            },
+            boxShadow: {
+                // Hard neo-brutalist shadows with teal tones
+                'neo': '4px 4px 0 var(--tw-shadow-color, #2d9f8f)',
+                'neo-sm': '2px 2px 0 var(--tw-shadow-color, #2d9f8f)',
+                'neo-lg': '8px 8px 0 var(--tw-shadow-color, #2d9f8f)',
             },
             animation: {
                 'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
                 'float': 'float 6s ease-in-out infinite',
-                'glow': 'glow 2s ease-in-out infinite alternate',
                 'slide-up': 'slideUp 0.5s ease-out',
                 'fade-in': 'fadeIn 0.4s ease-out',
             },
@@ -34,10 +39,6 @@ export default {
                 float: {
                     '0%, 100%': { transform: 'translateY(0)' },
                     '50%': { transform: 'translateY(-10px)' },
-                },
-                glow: {
-                    '0%': { boxShadow: '0 0 5px #6c5ce740, 0 0 10px #6c5ce720' },
-                    '100%': { boxShadow: '0 0 15px #6c5ce760, 0 0 30px #6c5ce730' },
                 },
                 slideUp: {
                     '0%': { opacity: '0', transform: 'translateY(20px)' },

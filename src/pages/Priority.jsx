@@ -38,11 +38,11 @@ export default function Priority() {
     if (loading) {
         return (
             <div className="min-h-[calc(100vh-64px)] flex items-center justify-center">
-                <div className="text-center animate-pulse-slow">
-                    <div className="w-16 h-16 mx-auto rounded-full bg-neuravex-accent/20 flex items-center justify-center mb-4">
-                        <span className="text-2xl">📊</span>
+                <div className="text-center animate-pulse bg-neuravex-bg p-8 border-4 border-neuravex-border shadow-neo transform rotate-1">
+                    <div className="w-16 h-16 mx-auto bg-neuravex-accent flex items-center justify-center mb-4 border-2 border-neuravex-border shadow-neo-sm transform -rotate-3 text-2xl font-black">
+                        📊
                     </div>
-                    <p className="text-neuravex-muted text-sm">Calculating priorities...</p>
+                    <p className="text-neuravex-text text-sm font-black uppercase tracking-widest font-mono">Calculating priorities...</p>
                 </div>
             </div>
         )
@@ -51,56 +51,58 @@ export default function Priority() {
     if (error) {
         return (
             <div className="min-h-[calc(100vh-64px)] flex items-center justify-center">
-                <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-6 max-w-md text-center">
-                    <p className="text-red-400 text-sm">{error}</p>
+                <div className="bg-neuravex-pink border-4 border-neuravex-border shadow-neo p-6 max-w-md text-center transform -rotate-1">
+                    <h2 className="text-neuravex-bg font-black uppercase text-xl mb-2">System Error</h2>
+                    <p className="text-neuravex-bg text-sm font-bold font-mono">{error}</p>
                 </div>
             </div>
         )
     }
 
     return (
-        <div className="min-h-[calc(100vh-64px)] p-6 max-w-3xl mx-auto animate-fade-in">
+        <div className="min-h-[calc(100vh-64px)] p-6 max-w-4xl mx-auto animate-fade-in">
             {/* Header */}
-            <div className="text-center mb-8">
-                <h1 className="text-3xl font-bold bg-gradient-to-r from-neuravex-accent-light to-pink-400 bg-clip-text text-transparent">
-                    Priority Dashboard
+            <div className="text-center mb-12 relative">
+                <div className="inline-block px-4 py-1 bg-neuravex-surface border-2 border-neuravex-border text-neuravex-accent font-mono text-xs font-bold uppercase tracking-widest mb-4 shadow-neo-sm transform -rotate-2">
+                    Analysis Module
+                </div>
+                <h1 className="text-5xl sm:text-6xl font-black uppercase text-neuravex-text tracking-tighter" style={{ textShadow: '4px 4px 0px #e8a838' }}>
+                    Priority Hub
                 </h1>
-                <p className="text-neuravex-muted mt-2 text-sm">
-                    AI-generated schedule with smart recommendations based on urgency and importance.
+                <p className="text-neuravex-text font-mono text-sm max-w-lg mx-auto mt-6 bg-neuravex-surface p-4 border-2 border-neuravex-border shadow-neo-sm">
+                    AI-generated schedule with smart recommendations based on urgency and importance metrics.
                 </p>
             </div>
 
             {/* Stats bar */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-12">
                 {[
-                    { label: 'Total Events', value: events.length, icon: '📅' },
-                    { label: 'Critical', value: enrichedEvents.filter((e) => e.priority_score > 15).length, icon: '🔴', color: '#dc2626' },
-                    { label: 'Today', value: events.filter((e) => dayjs(e.event_datetime).isSame(dayjs(), 'day')).length, icon: '📌' },
-                    { label: 'Schedule Items', value: schedule.length, icon: '📋' },
+                    { label: 'Total Events', value: events.length, icon: '📅', shadow: '#5ce0c8' },
+                    { label: 'Critical', value: enrichedEvents.filter((e) => e.priority_score > 15).length, icon: '🔴', shadow: '#e8a838' },
+                    { label: 'Today', value: events.filter((e) => dayjs(e.event_datetime).isSame(dayjs(), 'day')).length, icon: '📌', shadow: '#3bbfa7' },
+                    { label: 'Schedule', value: schedule.length, icon: '📋', shadow: '#2d9f8f' },
                 ].map((stat) => (
-                    <div key={stat.label} className="bg-neuravex-card border border-neuravex-border rounded-xl p-3 text-center">
-                        <span className="text-lg">{stat.icon}</span>
-                        <p className="text-xl font-bold text-neuravex-text mt-1" style={stat.color ? { color: stat.color } : {}}>
-                            {stat.value}
-                        </p>
-                        <p className="text-[10px] text-neuravex-muted uppercase tracking-wider">{stat.label}</p>
+                    <div key={stat.label} className="bg-neuravex-bg border-4 border-neuravex-border p-4 text-center shadow-neo-sm hover:translate-x-1 hover:translate-y-1 hover:shadow-none transition-all cursor-default" style={{ '--tw-shadow-color': stat.shadow }}>
+                        <span className="text-xl">{stat.icon}</span>
+                        <p className="text-2xl font-black text-neuravex-text mt-1">{stat.value}</p>
+                        <p className="text-[10px] text-neuravex-text font-black uppercase tracking-widest mt-1 opacity-70">{stat.label}</p>
                     </div>
                 ))}
             </div>
 
             {/* View toggle */}
-            <div className="flex justify-center mb-6">
-                <div className="inline-flex bg-neuravex-surface border border-neuravex-border rounded-lg p-1">
+            <div className="flex justify-center mb-10">
+                <div className="inline-flex bg-neuravex-surface border-4 border-neuravex-border p-1 shadow-neo-sm">
                     {[
-                        { id: 'schedule', label: '📋 Schedule' },
-                        { id: 'ranked', label: '📊 Recommended Actions' },
+                        { id: 'schedule', label: 'Schedule' },
+                        { id: 'ranked', label: 'Actions' },
                     ].map((tab) => (
                         <button
                             key={tab.id}
                             onClick={() => setView(tab.id)}
-                            className={`px-4 py-2 rounded-md text-xs font-medium transition-all duration-200 ${view === tab.id
-                                    ? 'bg-neuravex-accent text-white shadow-lg shadow-neuravex-accent/20'
-                                    : 'text-neuravex-muted hover:text-neuravex-text'
+                            className={`px-6 py-2 text-xs font-black uppercase tracking-widest transition-all ${view === tab.id
+                                ? 'bg-neuravex-accent text-neuravex-bg shadow-inner'
+                                : 'text-neuravex-text hover:bg-neuravex-card'
                                 }`}
                         >
                             {tab.label}
@@ -111,17 +113,17 @@ export default function Priority() {
 
             {/* Content */}
             {events.length === 0 ? (
-                <div className="text-center py-16">
-                    <div className="w-20 h-20 mx-auto rounded-full bg-neuravex-card flex items-center justify-center mb-4">
-                        <span className="text-3xl">🌙</span>
+                <div className="text-center py-20 bg-neuravex-bg border-4 border-dashed border-neuravex-border shadow-neo transform rotate-1">
+                    <div className="w-20 h-20 mx-auto bg-neuravex-surface border-4 border-neuravex-border flex items-center justify-center mb-6 shadow-neo-sm transform -rotate-3">
+                        <span className="text-4xl font-black">🕶️</span>
                     </div>
-                    <p className="text-neuravex-muted text-sm">No events yet. Upload something to get started!</p>
+                    <p className="text-neuravex-text font-black uppercase tracking-widest">No events in system.</p>
                 </div>
             ) : view === 'schedule' ? (
-                <div className="space-y-3">
+                <div className="space-y-6">
                     {schedule.length === 0 ? (
-                        <div className="text-center py-10">
-                            <p className="text-neuravex-muted text-sm">No upcoming events to schedule.</p>
+                        <div className="text-center py-10 font-mono text-neuravex-text bg-neuravex-surface border-2 border-neuravex-border">
+                            [ NO UPCOMING EVENTS DETECTED ]
                         </div>
                     ) : (
                         schedule.map((item, i) => (
@@ -131,8 +133,8 @@ export default function Priority() {
                 </div>
             ) : (
                 /* ===== RANKED / RECOMMENDED ACTIONS VIEW ===== */
-                <div className="space-y-4">
-                    <h2 className="text-sm font-semibold text-neuravex-muted uppercase tracking-wider text-center mb-2">
+                <div className="space-y-6">
+                    <h2 className="text-xl font-black text-neuravex-text uppercase tracking-tighter text-center mb-8 bg-neuravex-accent-light inline-block px-4 py-1 border-2 border-neuravex-border shadow-neo-sm mx-auto flex w-fit">
                         Recommended Actions
                     </h2>
                     {enrichedEvents.map((event, i) => {
@@ -140,75 +142,67 @@ export default function Priority() {
                         return (
                             <div
                                 key={event.id}
-                                className="relative overflow-hidden rounded-xl transition-all duration-300 hover:scale-[1.01] animate-slide-up"
+                                className="relative animate-slide-up"
                                 style={{ animationDelay: `${i * 60}ms`, animationFillMode: 'backwards' }}
                             >
-                                <div
-                                    className="absolute inset-0 rounded-xl"
-                                    style={{
-                                        background: `linear-gradient(135deg, ${color.bg}, #12121a)`,
-                                        border: `1px solid ${color.border}40`,
-                                    }}
-                                />
-
-                                <div className="relative p-5">
-                                    <div className="flex items-start gap-4">
+                                <div className="bg-neuravex-bg border-4 border-neuravex-border p-6 shadow-neo transition-all hover:-translate-y-1" style={{ '--tw-shadow-color': color.border }}>
+                                    <div className="flex items-start gap-6">
                                         {/* Rank + icon */}
-                                        <div className="flex-shrink-0 flex flex-col items-center gap-1">
-                                            <div className="w-8 h-8 rounded-lg bg-neuravex-surface flex items-center justify-center text-xs font-bold text-neuravex-muted">
+                                        <div className="flex-shrink-0 flex flex-col items-center gap-2">
+                                            <div className="w-10 h-10 border-2 border-neuravex-border bg-neuravex-surface flex items-center justify-center text-sm font-black text-neuravex-text shadow-neo-sm">
                                                 #{i + 1}
                                             </div>
-                                            <span className="text-xl">{event.actionIcon}</span>
+                                            <div className="text-2xl filter drop-shadow-[2px_2px_0_rgba(0,0,0,0.5)]">
+                                                {event.actionIcon}
+                                            </div>
                                         </div>
 
                                         {/* Main content */}
                                         <div className="flex-1 min-w-0">
-                                            {/* Event title */}
-                                            <h3 className="text-base font-semibold text-neuravex-text">{event.title}</h3>
-                                            <p className="text-xs text-neuravex-muted font-mono mt-0.5">
-                                                {dayjs(event.event_datetime).format('ddd, MMM D · h:mm A')}
-                                                {event.venue && ` · 📍 ${event.venue}`}
+                                            <div className="flex items-center justify-between gap-2 mb-2">
+                                                <h3 className="text-xl font-black uppercase text-neuravex-text tracking-tight truncate">
+                                                    {event.title}
+                                                </h3>
+                                                <div className="flex items-center gap-2">
+                                                    <span className="px-2 py-0 border-2 text-[10px] font-black uppercase tracking-widest bg-neuravex-surface" style={{ borderColor: color.border, color: color.border }}>
+                                                        {event.category}
+                                                    </span>
+                                                </div>
+                                            </div>
+
+                                            <p className="text-xs text-neuravex-text font-black font-mono opacity-70 uppercase mb-4">
+                                                {dayjs(event.event_datetime).format('MMM D · h:mm A')}
+                                                {event.venue && ` · ${event.venue}`}
                                             </p>
 
                                             {/* Action clause highlight */}
-                                            <div className="mt-3 bg-neuravex-bg/50 rounded-lg p-3 border-l-2" style={{ borderColor: color.border }}>
-                                                <p className="text-sm font-medium" style={{ color: color.text }}>
-                                                    ▸ {event.action}
+                                            <div className="bg-neuravex-surface border-2 border-neuravex-border p-4 shadow-neo-sm relative overflow-hidden">
+                                                <div className="absolute top-0 left-0 w-1.5 h-full" style={{ background: color.border }} />
+                                                <p className="text-base font-black uppercase tracking-tight" style={{ color: color.border }}>
+                                                    {event.action}
                                                 </p>
-                                                <p className="text-xs text-neuravex-muted mt-1">
-                                                    💡 {event.recommendation}
+                                                <p className="text-sm text-neuravex-text font-bold mt-2 font-mono">
+                                                    {event.recommendation}
                                                 </p>
                                                 {event.studyHours && (
-                                                    <p className="text-[11px] text-neuravex-accent-light mt-1">
-                                                        ⏱ {event.studyHours}h recommended preparation
-                                                    </p>
+                                                    <div className="mt-2 flex items-center gap-2 text-neuravex-accent-light font-black text-xs uppercase tracking-widest">
+                                                        <span>⏱ {event.studyHours}h BLOCK REQUIRED</span>
+                                                    </div>
                                                 )}
-                                            </div>
-
-                                            {/* Category tag */}
-                                            <div className="flex items-center gap-2 mt-3">
-                                                <span
-                                                    className="px-2 py-0.5 rounded-full text-[10px] font-medium uppercase"
-                                                    style={{ background: `${color.border}20`, color: color.text }}
-                                                >
-                                                    {event.category}
-                                                </span>
-                                                <span className="text-[10px] uppercase tracking-wider" style={{ color: color.text }}>
-                                                    {color.label}
-                                                </span>
                                             </div>
                                         </div>
 
                                         {/* Score */}
                                         <div className="flex-shrink-0 flex flex-col items-center gap-1">
                                             <div
-                                                className="w-12 h-12 rounded-xl flex items-center justify-center text-lg font-bold"
-                                                style={{ background: `${color.border}20`, color: color.text, border: `1px solid ${color.border}40` }}
+                                                className="w-16 h-16 border-4 border-neuravex-border flex flex-col items-center justify-center shadow-neo-sm font-black"
+                                                style={{ background: color.bg, color: color.border }}
                                             >
-                                                {event.priority_score}
+                                                <span className="text-2xl">{event.priority_score}</span>
+                                                <span className="text-[9px] uppercase tracking-widest mt-[-4px]">PTS</span>
                                             </div>
-                                            <span className="text-[9px] uppercase tracking-wider font-medium" style={{ color: color.text }}>
-                                                score
+                                            <span className="text-[10px] font-black uppercase tracking-widest mt-1" style={{ color: color.border }}>
+                                                {color.label}
                                             </span>
                                         </div>
                                     </div>
