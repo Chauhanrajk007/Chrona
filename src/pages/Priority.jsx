@@ -77,10 +77,10 @@ export default function Priority() {
             {/* Stats bar */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-12">
                 {[
-                    { label: 'Total Events', value: events.length, icon: '📅', shadow: '#5ce0c8' },
-                    { label: 'Critical', value: enrichedEvents.filter((e) => e.priority_score > 15).length, icon: '🔴', shadow: '#e8a838' },
-                    { label: 'Today', value: events.filter((e) => dayjs(e.event_datetime).isSame(dayjs(), 'day')).length, icon: '📌', shadow: '#3bbfa7' },
-                    { label: 'Schedule', value: schedule.length, icon: '📋', shadow: '#2d9f8f' },
+                    { label: 'Total Events', value: events.length, icon: '📅', shadow: '#3498db' },
+                    { label: 'Critical', value: enrichedEvents.filter((e) => e.priority_score > 15).length, icon: '🔴', shadow: '#ff4757' },
+                    { label: 'Today', value: events.filter((e) => dayjs(e.event_datetime).isSame(dayjs(), 'day')).length, icon: '📌', shadow: '#ffa502' },
+                    { label: 'Schedule', value: schedule.length, icon: '📋', shadow: '#2ecc71' },
                 ].map((stat) => (
                     <div key={stat.label} className="bg-neuravex-bg border-4 border-neuravex-border p-4 text-center shadow-neo-sm hover:translate-x-1 hover:translate-y-1 hover:shadow-none transition-all cursor-default" style={{ '--tw-shadow-color': stat.shadow }}>
                         <span className="text-xl">{stat.icon}</span>

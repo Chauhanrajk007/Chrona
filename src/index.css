@@ -63,6 +63,6 @@ body {
 }
 
 .react-flow__edge path {
-  stroke: #3bbfa760 !important;
-  stroke-width: 2 !important;
+  stroke-width: 3 !important;
+  opacity: 1 !important;
 }

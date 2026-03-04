@@ -20,6 +20,22 @@ import CategoryNode from '../components/CategoryNode'
 
 const nodeTypes = { eventNode: EventNode, categoryNode: CategoryNode }
 
+// Distinct colors for each category so they are easy to distinguish
+const CATEGORY_COLORS = {
+    exam: { border: '#e74c3c', bg: '#e74c3c20', glow: '#e74c3c80' },        // Red
+    hackathon: { border: '#00b894', bg: '#00b89420', glow: '#00b89480' },    // Teal-green
+    assignment: { border: '#e67e22', bg: '#e67e2220', glow: '#e67e2280' },   // Orange
+    meeting: { border: '#9b59b6', bg: '#9b59b620', glow: '#9b59b680' },      // Purple
+    personal: { border: '#3498db', bg: '#3498db20', glow: '#3498db80' },     // Blue
+    reminder: { border: '#1abc9c', bg: '#1abc9c20', glow: '#1abc9c80' },     // Mint
+    other: { border: '#95a5a6', bg: '#95a5a620', glow: '#95a5a680' },        // Gray
+}
+
+function getCategoryColor(category) {
+    const key = (category || 'other').toLowerCase()
+    return CATEGORY_COLORS[key] || CATEGORY_COLORS.other
+}
+
 export default function Mindmap() {
     const [events, setEvents] = useState([])
     const [loading, setLoading] = useState(true)
@@ -120,10 +136,9 @@ export default function Mindmap() {
 
         // 3. Create Category nodes and their respective Event nodes
         categoryKeys.forEach((cat, catIndex) => {
-            // Determine a base color for the category using the highest priority event in that category
+            // Use distinct category color instead of priority color for the category node
             const eventsInCat = categories[cat]
-            const highestEvent = eventsInCat[0] // Since they are already sorted by priority
-            const color = getPriorityColor(getPriorityScore(highestEvent))
+            const catColor = getCategoryColor(cat)
 
             const catId = `cat-${cat}`
             const catAngle = (2 * Math.PI * catIndex) / catCount - Math.PI / 2
@@ -132,22 +147,22 @@ export default function Mindmap() {
             const cx = Math.cos(catAngle) * catRadius
             const cy = Math.sin(catAngle) * catRadius
 
-            // Add Category Node
+            // Add Category Node with distinct category color
             newNodes.push({
                 id: catId,
                 type: 'categoryNode',
                 position: { x: cx - 70, y: cy - 20 },
-                data: { label: cat, color },
+                data: { label: cat, color: catColor },
                 draggable: true,
             })
 
-            // Add Edge from Center to Category
+            // Add Edge from Center to Category - THICK and VISIBLE
             newEdges.push({
                 id: `edge-center-${cat}`,
                 source: 'center',
                 target: catId,
-                type: 'default', // Bezier curve
-                style: { stroke: color.border, strokeWidth: 3, opacity: 0.6 },
+                type: 'default',
+                style: { stroke: catColor.border, strokeWidth: 4, opacity: 1 },
                 animated: true,
             })
 
@@ -176,13 +191,15 @@ export default function Mindmap() {
                     draggable: true,
                 })
 
+                // Use priority color for event edges so they stand out
+                const eventColor = getPriorityColor(score)
                 newEdges.push({
                     id: `edge-${cat}-${event.id}`,
                     source: catId,
                     target: event.id,
-                    type: 'default', // Bezier curve
+                    type: 'default',
                     animated: score > 15,
-                    style: { stroke: color.border, strokeWidth: 2, opacity: 0.4 },
+                    style: { stroke: eventColor.border, strokeWidth: 3, opacity: 1 },
                 })
             })
         })
@@ -228,10 +245,10 @@ export default function Mindmap() {
             {/* Legend */}
             <div className="absolute bottom-4 left-4 z-10 bg-neuravex-bg border-4 border-neuravex-border p-3 space-y-2 shadow-neo-sm transform rotate-1">
                 {[
-                    { label: 'Critical', color: '#e8a838' }, // Amber
-                    { label: 'High', color: '#3bbfa7' },    // Teal
-                    { label: 'Medium', color: '#5ce0c8' },  // Light teal
-                    { label: 'Low', color: '#2d9f8f' },     // Dark teal
+                    { label: 'Critical', color: '#ff4757' }, // Red
+                    { label: 'High', color: '#ffa502' },    // Orange
+                    { label: 'Medium', color: '#3498db' },  // Blue
+                    { label: 'Low', color: '#2ecc71' },     // Green
                 ].map((item) => (
                     <div key={item.label} className="flex items-center gap-2">
                         <div className="w-4 h-4 border-2 border-neuravex-border shadow-neo-sm" style={{ background: item.color }} />

@@ -52,10 +52,10 @@ export function getPriorityScore(event) {
  * Get color based on priority score.
  */
 export function getPriorityColor(score) {
-    if (score > 15) return { bg: '#e8a83820', border: '#e8a838', text: '#e8a838', label: 'Critical' }
-    if (score > 10) return { bg: '#3bbfa720', border: '#3bbfa7', text: '#3bbfa7', label: 'High' }
-    if (score > 5) return { bg: '#5ce0c820', border: '#5ce0c8', text: '#5ce0c8', label: 'Medium' }
-    return { bg: '#2d9f8f20', border: '#2d9f8f', text: '#2d9f8f', label: 'Low' }
+    if (score > 15) return { bg: '#ff475720', border: '#ff4757', text: '#ff4757', label: 'Critical' }  // Red
+    if (score > 10) return { bg: '#ffa50220', border: '#ffa502', text: '#ffa502', label: 'High' }      // Orange
+    if (score > 5) return { bg: '#3498db20', border: '#3498db', text: '#3498db', label: 'Medium' }     // Blue
+    return { bg: '#2ecc7120', border: '#2ecc71', text: '#2ecc71', label: 'Low' }                       // Green
 }
 
 /**
