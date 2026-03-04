@@ -2,6 +2,7 @@ import { Routes, Route, NavLink } from 'react-router-dom'
 import Upload from './pages/Upload'
 import Mindmap from './pages/Mindmap'
 import Priority from './pages/Priority'
+import OpeningAnimation from './components/OpeningAnimation'
 
 const navLinks = [
     { to: '/', label: 'Upload', icon: '⬆️' },
@@ -11,9 +12,12 @@ const navLinks = [
 
 export default function App() {
     return (
-        <div className="min-h-screen bg-neuravex-bg">
+        <div className="min-h-screen bg-neuravex-bg relative">
+            {/* Opening Animation Overlay */}
+            <OpeningAnimation />
+
             {/* Navigation */}
-            <nav className="sticky top-0 z-50 bg-neuravex-bg/80 backdrop-blur-xl border-b border-neuravex-border">
+            <nav className="sticky top-0 z-40 bg-neuravex-bg/80 backdrop-blur-xl border-b border-neuravex-border">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
                     {/* Logo */}
                     <div className="flex items-center gap-2.5">
