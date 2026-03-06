@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import {
     sortByPriority,
@@ -17,20 +17,28 @@ export default function Priority() {
     const [error, setError] = useState(null)
     const [view, setView] = useState('schedule')
 
-    useEffect(() => {
-        async function fetchEvents() {
-            try {
-                const { data, error: fetchError } = await supabase.from('events').select('*')
-                if (fetchError) throw fetchError
-                setEvents(data || [])
-            } catch (err) {
-                setError(err.message)
-            } finally {
-                setLoading(false)
-            }
+    const fetchEvents = useCallback(async () => {
+        try {
+            const { data, error: fetchError } = await supabase.from('events').select('*')
+            if (fetchError) throw fetchError
+            setEvents(data || [])
+        } catch (err) {
+            setError(err.message)
+        } finally {
+            setLoading(false)
         }
-        fetchEvents()
     }, [])
+
+    useEffect(() => { fetchEvents() }, [fetchEvents])
+
+    const handleDeleteEvent = useCallback(async (eventId) => {
+        setEvents((prev) => prev.filter((e) => e.id !== eventId))
+        const { error: delError } = await supabase.from('events').delete().eq('id', eventId)
+        if (delError) {
+            console.error('Delete failed:', delError.message)
+            fetchEvents()
+        }
+    }, [fetchEvents])
 
     const enrichedEvents = enrichAndSort(events)
     const schedule = generateSchedule(events)
@@ -136,7 +144,7 @@ export default function Priority() {
                         </div>
                     ) : (
                         schedule.map((item, i) => (
-                            <PriorityCard key={item.id} item={item} index={i} />
+                            <PriorityCard key={item.id} item={item} index={i} onDelete={handleDeleteEvent} />
                         ))
                     )}
                 </div>
@@ -180,12 +188,27 @@ export default function Priority() {
                                                         style={{ background: `${color.border}15`, color: color.border, border: `1px solid ${color.border}25` }}>
                                                         {event.category}
                                                     </span>
-                                                    <div
-                                                        className="w-8 h-8 rounded-lg flex flex-col items-center justify-center font-bold ml-auto flex-shrink-0"
-                                                        style={{ background: `${color.border}18`, color: color.border, border: `1px solid ${color.border}30` }}
-                                                    >
-                                                        <span className="text-xs leading-none">{event.priority_score}</span>
-                                                        <span className="text-[5px] uppercase leading-none opacity-70">pts</span>
+                                                    <div className="flex items-center gap-1.5 ml-auto">
+                                                        {/* Delete button */}
+                                                        <button
+                                                            onClick={() => handleDeleteEvent(event.id)}
+                                                            className="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center rounded-lg text-xs font-bold transition-all duration-150 hover:scale-110 flex-shrink-0"
+                                                            style={{
+                                                                background: 'rgba(255, 77, 77, 0.15)',
+                                                                color: '#ff4d4d',
+                                                                border: '1px solid rgba(255, 77, 77, 0.3)',
+                                                            }}
+                                                            title="Delete event"
+                                                        >
+                                                            ✕
+                                                        </button>
+                                                        <div
+                                                            className="w-8 h-8 rounded-lg flex flex-col items-center justify-center font-bold flex-shrink-0"
+                                                            style={{ background: `${color.border}18`, color: color.border, border: `1px solid ${color.border}30` }}
+                                                        >
+                                                            <span className="text-xs leading-none">{event.priority_score}</span>
+                                                            <span className="text-[5px] uppercase leading-none opacity-70">pts</span>
+                                                        </div>
                                                     </div>
                                                 </div>
                                                 <h3 className="text-sm sm:text-lg font-semibold text-nv-text tracking-tight break-words whitespace-normal">

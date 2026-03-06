@@ -6,7 +6,6 @@ import {
     MiniMap,
     useNodesState,
     useEdgesState,
-    useReactFlow,
     ReactFlowProvider,
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
@@ -39,14 +38,13 @@ function getCategoryColor(cat) {
 const STORAGE_KEY = 'neuravex_mindmap_positions'
 
 // ── Inner ReactFlow component ────────────────────────────────────────────────
-function MindmapCanvas({ events, canvasHeight }) {
+function MindmapCanvas({ events, canvasHeight, onDeleteEvent }) {
     const [nodes, setNodes, onNodesChange] = useNodesState([])
     const [edges, setEdges, onEdgesChange] = useEdgesState([])
-    const { fitView } = useReactFlow()
-    const fitQueued = useRef(false)
+    const rfInstance = useRef(null)
 
-    const buildLayout = useCallback((eventsData, ignoreSaved = false) => {
-        const saved = ignoreSaved ? {} : JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}')
+    const buildLayout = useCallback((eventsData) => {
+        const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}')
         const sorted = sortByPriority(eventsData)
         const newNodes = []
         const newEdges = []
@@ -108,7 +106,13 @@ function MindmapCanvas({ events, canvasHeight }) {
                 const ey = cy + Math.sin(eAngle) * dist
                 const ePos = saved[ev.id] || { x: ex - 60, y: ey - 20 }
                 const eColor = getPriorityColor(score)
-                newNodes.push({ id: ev.id, type: 'eventNode', position: ePos, data: { event: ev }, draggable: true })
+                newNodes.push({
+                    id: ev.id,
+                    type: 'eventNode',
+                    position: ePos,
+                    data: { event: ev, onDelete: onDeleteEvent },
+                    draggable: true,
+                })
                 newEdges.push({
                     id: `e-${cat}-${ev.id}`, source: catId, target: ev.id,
                     animated: score > 15,
@@ -119,19 +123,17 @@ function MindmapCanvas({ events, canvasHeight }) {
 
         setNodes(newNodes)
         setEdges(newEdges)
-        fitQueued.current = true
-    }, [setNodes, setEdges])
+    }, [setNodes, setEdges, onDeleteEvent])
 
     useEffect(() => { buildLayout(events) }, [events, buildLayout])
 
-    // Always fit the full map into view after nodes load
-    useEffect(() => {
-        if (!fitQueued.current || nodes.length === 0 || !canvasHeight) return
-        fitQueued.current = false
-        // Use a longer delay to ensure DOM is measured after React paints
-        const t = setTimeout(() => fitView({ padding: 0.18, duration: 500 }), 400)
-        return () => clearTimeout(t)
-    }, [nodes, fitView, canvasHeight])
+    // When ReactFlow initializes, do a delayed fitView as extra assurance
+    const onInit = useCallback((instance) => {
+        rfInstance.current = instance
+        // After init, wait for nodes to be painted then fit
+        setTimeout(() => instance.fitView({ padding: 0.2, duration: 400 }), 300)
+        setTimeout(() => instance.fitView({ padding: 0.2, duration: 400 }), 800)
+    }, [])
 
     const onNodeDragStop = useCallback((_e, node) => {
         const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}')
@@ -147,13 +149,15 @@ function MindmapCanvas({ events, canvasHeight }) {
                 onNodesChange={onNodesChange}
                 onEdgesChange={onEdgesChange}
                 onNodeDragStop={onNodeDragStop}
+                onInit={onInit}
                 nodeTypes={nodeTypes}
                 panOnScroll={false}
                 panOnDrag={true}
                 zoomOnPinch={true}
                 zoomOnScroll={false}
                 preventScrolling={true}
-                fitView={false}
+                fitView
+                fitViewOptions={{ padding: 0.2 }}
                 minZoom={0.05}
                 maxZoom={3}
                 proOptions={{ hideAttribution: true }}
@@ -190,19 +194,34 @@ export default function Mindmap() {
         return () => window.removeEventListener('resize', measure)
     }, [])
 
-    useEffect(() => {
-        supabase.from('events').select('*').order('event_datetime', { ascending: true })
-            .then(({ data, error: e }) => {
-                if (e) setError(e.message)
-                else setEvents(data || [])
-                setLoading(false)
-            })
+    const fetchEvents = useCallback(async () => {
+        const { data, error: e } = await supabase.from('events').select('*').order('event_datetime', { ascending: true })
+        if (e) setError(e.message)
+        else setEvents(data || [])
+        setLoading(false)
     }, [])
+
+    useEffect(() => { fetchEvents() }, [fetchEvents])
 
     const handleReset = () => {
         localStorage.removeItem(STORAGE_KEY)
         setResetKey((k) => k + 1)
     }
+
+    const handleDeleteEvent = useCallback(async (eventId) => {
+        // Optimistically remove from UI
+        setEvents((prev) => prev.filter((e) => e.id !== eventId))
+        // Remove saved position
+        const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}')
+        delete saved[eventId]
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(saved))
+        // Delete from database
+        const { error: delError } = await supabase.from('events').delete().eq('id', eventId)
+        if (delError) {
+            console.error('Delete failed:', delError.message)
+            fetchEvents() // Re-fetch on error
+        }
+    }, [fetchEvents])
 
     const canvasStyle = {
         width: '100%',
@@ -262,7 +281,7 @@ export default function Mindmap() {
                 </div>
             ) : (
                 <ReactFlowProvider key={resetKey}>
-                    <MindmapCanvas key={resetKey} events={events} canvasHeight={canvasHeight} />
+                    <MindmapCanvas events={events} canvasHeight={canvasHeight} onDeleteEvent={handleDeleteEvent} />
                 </ReactFlowProvider>
             )}
         </div>

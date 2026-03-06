@@ -1,8 +1,13 @@
 import { getPriorityColor } from '../lib/priorityEngine'
 
-export default function PriorityCard({ item, index }) {
+export default function PriorityCard({ item, index, onDelete }) {
     const color = getPriorityColor(item.priority)
     const isBreak = item.type === 'break'
+
+    const handleDelete = (e) => {
+        e.stopPropagation()
+        if (onDelete && item.id) onDelete(item.id)
+    }
 
     return (
         <div
@@ -23,7 +28,7 @@ export default function PriorityCard({ item, index }) {
                 {/* Left glow bar */}
                 <div className="absolute top-0 left-0 w-1 h-full rounded-l-xl" style={{ background: isBreak ? 'rgba(148, 163, 184, 0.3)' : color.border, boxShadow: isBreak ? 'none' : `0 0 8px ${color.border}60` }} />
 
-                {/* Top info row: time + priority badge */}
+                {/* Top info row: time + delete + priority badge */}
                 <div className="flex items-center justify-between mb-2.5 sm:mb-3 pb-2.5" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
                     {/* Time */}
                     <div className="flex items-center gap-1.5 pl-2">
@@ -32,16 +37,34 @@ export default function PriorityCard({ item, index }) {
                         <span className="text-xs sm:text-sm font-medium text-nv-text-dim">{item.endTime}</span>
                     </div>
 
-                    {/* Priority score */}
-                    {!isBreak && (
-                        <div
-                            className="w-8 h-8 sm:w-9 sm:h-9 flex flex-col items-center justify-center font-bold flex-shrink-0 rounded-lg"
-                            style={{ background: `${color.border}18`, color: color.border, border: `1px solid ${color.border}30` }}
-                        >
-                            <span className="text-xs sm:text-sm leading-none">{item.priority}</span>
-                            <span className="text-[5px] sm:text-[6px] uppercase leading-none tracking-widest opacity-70">pts</span>
-                        </div>
-                    )}
+                    <div className="flex items-center gap-2">
+                        {/* Delete button — red X */}
+                        {!isBreak && (
+                            <button
+                                onClick={handleDelete}
+                                className="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center rounded-lg text-xs font-bold transition-all duration-150 hover:scale-110"
+                                style={{
+                                    background: 'rgba(255, 77, 77, 0.15)',
+                                    color: '#ff4d4d',
+                                    border: '1px solid rgba(255, 77, 77, 0.3)',
+                                }}
+                                title="Delete event"
+                            >
+                                ✕
+                            </button>
+                        )}
+
+                        {/* Priority score */}
+                        {!isBreak && (
+                            <div
+                                className="w-8 h-8 sm:w-9 sm:h-9 flex flex-col items-center justify-center font-bold flex-shrink-0 rounded-lg"
+                                style={{ background: `${color.border}18`, color: color.border, border: `1px solid ${color.border}30` }}
+                            >
+                                <span className="text-xs sm:text-sm leading-none">{item.priority}</span>
+                                <span className="text-[5px] sm:text-[6px] uppercase leading-none tracking-widest opacity-70">pts</span>
+                            </div>
+                        )}
+                    </div>
                 </div>
 
                 {/* Main content */}
