@@ -2,43 +2,62 @@
 @tailwind components;
 @tailwind utilities;
 
-* {
+/* ─── Global Reset ──────────────────────────────── */
+*,
+*::before,
+*::after {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
 }
 
-/* Custom scrollbar - Neo Brutalist */
-::-webkit-scrollbar {
-  width: 14px;
+html {
+  overflow-x: hidden;
+  scroll-behavior: smooth;
+  height: 100%;
 }
 
-::-webkit-scrollbar-track {
-  background: #fffbf5;
-  border-left: 2px solid #000000;
-}
-
-::-webkit-scrollbar-thumb {
-  background: #000000;
-  border: 2px solid #000000;
-  border-radius: 0;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: #374151;
-}
-
-/* Base Body styling */
 body {
   font-family: 'Space Grotesk', 'Inter', system-ui, sans-serif;
   color: #000000;
   min-height: 100vh;
+  min-height: 100dvh;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   background: linear-gradient(to bottom, #fffbf5 0%, #faebd7 100%);
+  overflow-x: hidden;
 }
 
-/* React Flow overrides */
+/* ─── Scrollbar ─────────────────────────────────── */
+@media (min-width: 640px) {
+  ::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: #fffbf5;
+    border-left: 2px solid #000;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: #000;
+    border: 2px solid #000;
+    border-radius: 0;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: #374151;
+  }
+}
+
+@media (max-width: 639px) {
+  ::-webkit-scrollbar {
+    width: 0;
+  }
+}
+
+/* ─── React Flow Overrides ──────────────────────── */
 .react-flow__background {
   background-color: transparent !important;
 }
@@ -48,6 +67,8 @@ body {
   border: 1px solid #000000 !important;
   color: #000000 !important;
   fill: #000000 !important;
+  width: 28px !important;
+  height: 28px !important;
 }
 
 .react-flow__controls button:hover {
@@ -57,10 +78,15 @@ body {
 .react-flow__minimap {
   background-color: #ffffff !important;
   border: 1px solid #000000 !important;
-  border-radius: 8px !important;
+  border-radius: 0 !important;
 }
 
 .react-flow__edge path {
   stroke-width: 3 !important;
   opacity: 1 !important;
+}
+
+/* Prevent page scroll when interacting with the mindmap */
+.react-flow__pane {
+  touch-action: none !important;
 }

@@ -5,27 +5,19 @@ export default function CategoryNode({ data }) {
 
     return (
         <div
-            className="relative px-6 py-3 transition-all duration-300 hover:-translate-y-1 hover:translate-x-1 cursor-pointer group flex items-center justify-center min-w-[140px] bg-neuravex-surface transform -rotate-2"
+            className="relative px-3 sm:px-5 py-1.5 sm:py-2 transition-all duration-300 cursor-pointer flex items-center justify-center min-w-[80px] sm:min-w-[120px] bg-neuravex-surface transform -rotate-1"
             style={{
-                border: `4px solid ${color.border}`,
-                boxShadow: `4px 4px 0 ${color.border}`,
+                border: `3px solid ${color.border}`,
+                boxShadow: `3px 3px 0 ${color.border}`,
             }}
         >
-            <Handle
-                type="target"
-                position={Position.Left}
-                className="!bg-transparent !border-0 !w-0 !h-0"
-            />
+            <Handle type="target" position={Position.Left} className="!bg-transparent !border-0 !w-0 !h-0" />
 
-            <h3 className="text-xl font-black tracking-widest uppercase text-neuravex-text" style={{ textShadow: `2px 2px 0px #ffffff, -1px -1px 0 #ffffff, 1px -1px 0 #ffffff, -1px 1px 0 #ffffff, 1px 1px 0 #ffffff` }}>
+            <h3 className="text-xs sm:text-base font-black tracking-widest uppercase text-neuravex-text" style={{ textShadow: `1px 1px 0px #ffffff, -1px -1px 0 #ffffff, 1px -1px 0 #ffffff, -1px 1px 0 #ffffff` }}>
                 {label}
             </h3>
 
-            <Handle
-                type="source"
-                position={Position.Right}
-                className="!bg-transparent !border-0 !w-0 !h-0"
-            />
+            <Handle type="source" position={Position.Right} className="!bg-transparent !border-0 !w-0 !h-0" />
         </div>
     )
 }

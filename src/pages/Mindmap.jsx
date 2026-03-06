@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useRef, useLayoutEffect } from 'react'
 import {
     ReactFlow,
     Background,
@@ -6,6 +6,8 @@ import {
     MiniMap,
     useNodesState,
     useEdgesState,
+    useReactFlow,
+    ReactFlowProvider,
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import { supabase } from '../lib/supabase'
@@ -20,275 +22,235 @@ import CategoryNode from '../components/CategoryNode'
 
 const nodeTypes = { eventNode: EventNode, categoryNode: CategoryNode }
 
-// Distinct colors for each category so they are easy to distinguish
 const CATEGORY_COLORS = {
-    exam: { border: '#e74c3c', bg: '#e74c3c20', glow: '#e74c3c80' },        // Red
-    hackathon: { border: '#00b894', bg: '#00b89420', glow: '#00b89480' },    // Teal-green
-    assignment: { border: '#e67e22', bg: '#e67e2220', glow: '#e67e2280' },   // Orange
-    meeting: { border: '#9b59b6', bg: '#9b59b620', glow: '#9b59b680' },      // Purple
-    personal: { border: '#3498db', bg: '#3498db20', glow: '#3498db80' },     // Blue
-    reminder: { border: '#1abc9c', bg: '#1abc9c20', glow: '#1abc9c80' },     // Mint
-    other: { border: '#95a5a6', bg: '#95a5a620', glow: '#95a5a680' },        // Gray
+    exam: { border: '#e74c3c', bg: '#e74c3c20' },
+    hackathon: { border: '#00b894', bg: '#00b89420' },
+    assignment: { border: '#e67e22', bg: '#e67e2220' },
+    meeting: { border: '#9b59b6', bg: '#9b59b620' },
+    personal: { border: '#3498db', bg: '#3498db20' },
+    reminder: { border: '#1abc9c', bg: '#1abc9c20' },
+    other: { border: '#95a5a6', bg: '#95a5a620' },
 }
 
-function getCategoryColor(category) {
-    const key = (category || 'other').toLowerCase()
-    return CATEGORY_COLORS[key] || CATEGORY_COLORS.other
+function getCategoryColor(cat) {
+    return CATEGORY_COLORS[(cat || 'other').toLowerCase()] || CATEGORY_COLORS.other
 }
 
-export default function Mindmap() {
-    const [events, setEvents] = useState([])
-    const [loading, setLoading] = useState(true)
-    const [error, setError] = useState(null)
+const STORAGE_KEY = 'neuravex_mindmap_positions'
+
+// ── Inner ReactFlow component ────────────────────────────────────────────────
+function MindmapCanvas({ events, canvasHeight }) {
     const [nodes, setNodes, onNodesChange] = useNodesState([])
     const [edges, setEdges, onEdgesChange] = useEdgesState([])
+    const { fitView } = useReactFlow()
+    const fitQueued = useRef(false)
 
-    // Fetch events
-    useEffect(() => {
-        async function fetchEvents() {
-            try {
-                const { data, error: fetchError } = await supabase
-                    .from('events')
-                    .select('*')
-                    .order('event_datetime', { ascending: true })
-
-                if (fetchError) throw fetchError
-                setEvents(data || [])
-            } catch (err) {
-                setError(err.message)
-            } finally {
-                setLoading(false)
-            }
-        }
-        fetchEvents()
-    }, [])
-
-    // Build nodes and edges when events change
-    useEffect(() => {
-        if (events.length === 0) {
-            setNodes([
-                {
-                    id: 'center',
-                    type: 'default',
-                    position: { x: 0, y: 0 },
-                    data: { label: '🧠 You' },
-                    style: {
-                        background: 'linear-gradient(135deg, #000000, #374151)',
-                        color: '#ffffff',
-                        border: '2px solid #000000',
-                        borderRadius: '50%',
-                        width: 80,
-                        height: 80,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontSize: '16px',
-                        fontWeight: 700,
-                        boxShadow: '0 0 30px #00000040',
-                    },
-                    draggable: true,
-                },
-            ])
-            setEdges([])
-            return
-        }
-
-        const sorted = sortByPriority(events)
+    const buildLayout = useCallback((eventsData, ignoreSaved = false) => {
+        const saved = ignoreSaved ? {} : JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}')
+        const sorted = sortByPriority(eventsData)
         const newNodes = []
         const newEdges = []
 
-        // 1. Center node
+        const centerPos = saved['center'] || { x: 0, y: 0 }
         newNodes.push({
             id: 'center',
             type: 'default',
-            position: { x: 0, y: 0 },
+            position: centerPos,
             data: { label: '🧠 You' },
             style: {
-                background: 'linear-gradient(135deg, #000000, #374151)',
-                color: '#ffffff',
-                border: '2px solid #000000',
+                background: 'linear-gradient(135deg,#000,#374151)',
+                color: '#fff',
+                border: '3px solid #000',
                 borderRadius: '50%',
-                width: 80,
-                height: 80,
+                width: 72,
+                height: 72,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                fontSize: '16px',
-                fontWeight: 700,
-                boxShadow: '0 0 30px #00000040',
+                fontSize: '13px',
+                fontWeight: 900,
+                boxShadow: '4px 4px 0 #000',
             },
             draggable: true,
         })
 
-        // 2. Group events by category
-        const categories = {}
-        sorted.forEach((event) => {
-            const cat = event.category || 'other'
-            if (!categories[cat]) categories[cat] = []
-            categories[cat].push(event)
+        const byCategory = {}
+        sorted.forEach((e) => {
+            const cat = e.category || 'other'
+            if (!byCategory[cat]) byCategory[cat] = []
+            byCategory[cat].push(e)
         })
 
-        const categoryKeys = Object.keys(categories)
-        const catCount = categoryKeys.length
-
-        // Category circle radius
-        const catRadius = 300
-
-        // 3. Create Category nodes and their respective Event nodes
-        categoryKeys.forEach((cat, catIndex) => {
-            // Use distinct category color instead of priority color for the category node
-            const eventsInCat = categories[cat]
-            const catColor = getCategoryColor(cat)
-
+        const catKeys = Object.keys(byCategory)
+        catKeys.forEach((cat, ci) => {
+            const evts = byCategory[cat]
+            const color = getCategoryColor(cat)
             const catId = `cat-${cat}`
-            const catAngle = (2 * Math.PI * catIndex) / catCount - Math.PI / 2
+            const angle = (2 * Math.PI * ci) / catKeys.length - Math.PI / 2
+            const cx = Math.cos(angle) * 200
+            const cy = Math.sin(angle) * 200
+            const catPos = saved[catId] || { x: cx - 55, y: cy - 15 }
 
-            // Plot category position
-            const cx = Math.cos(catAngle) * catRadius
-            const cy = Math.sin(catAngle) * catRadius
+            newNodes.push({ id: catId, type: 'categoryNode', position: catPos, data: { label: cat, color }, draggable: true })
+            newEdges.push({ id: `e-c-${cat}`, source: 'center', target: catId, style: { stroke: color.border, strokeWidth: 3 }, animated: true })
 
-            // Add Category Node with distinct category color
-            newNodes.push({
-                id: catId,
-                type: 'categoryNode',
-                position: { x: cx - 70, y: cy - 20 },
-                data: { label: cat, color: catColor },
-                draggable: true,
-            })
-
-            // Add Edge from Center to Category - THICK and VISIBLE
-            newEdges.push({
-                id: `edge-center-${cat}`,
-                source: 'center',
-                target: catId,
-                type: 'default',
-                style: { stroke: catColor.border, strokeWidth: 4, opacity: 1 },
-                animated: true,
-            })
-
-            // Radially fan out the events belonging to this category from the category node
-            const eventCount = eventsInCat.length
-            const spreadAngle = (Math.PI / 3) // 60 degrees spread per category cluster
-            const startAngle = catAngle - spreadAngle / 2
-
-            eventsInCat.forEach((event, eIndex) => {
-                const eAngle = eventCount === 1
-                    ? catAngle
-                    : startAngle + (spreadAngle * (eIndex / (eventCount - 1)))
-
-                // Add distance outward from the category node
-                const score = getPriorityScore(event)
-                const distanceOut = getNodeDistance(score) + 100 // Extra padding from cat node
-
-                const ex = cx + Math.cos(eAngle) * distanceOut
-                const ey = cy + Math.sin(eAngle) * distanceOut
-
-                newNodes.push({
-                    id: event.id,
-                    type: 'eventNode',
-                    position: { x: ex - 90, y: ey - 30 },
-                    data: { event },
-                    draggable: true,
-                })
-
-                // Use priority color for event edges so they stand out
-                const eventColor = getPriorityColor(score)
-                newEdges.push({
-                    id: `edge-${cat}-${event.id}`,
-                    source: catId,
-                    target: event.id,
-                    type: 'default',
-                    animated: score > 15,
-                    style: { stroke: eventColor.border, strokeWidth: 3, opacity: 1 },
-                })
+            const spread = Math.PI / 3
+            const startAngle = angle - spread / 2
+            evts.forEach((ev, ei) => {
+                const eAngle = evts.length === 1 ? angle : startAngle + (spread * ei) / (evts.length - 1)
+                const score = getPriorityScore(ev)
+                const dist = Math.min(getNodeDistance(score) + 60, 130)
+                const ex = cx + Math.cos(eAngle) * dist
+                const ey = cy + Math.sin(eAngle) * dist
+                const ePos = saved[ev.id] || { x: ex - 60, y: ey - 20 }
+                const eColor = getPriorityColor(score)
+                newNodes.push({ id: ev.id, type: 'eventNode', position: ePos, data: { event: ev }, draggable: true })
+                newEdges.push({ id: `e-${cat}-${ev.id}`, source: catId, target: ev.id, animated: score > 15, style: { stroke: eColor.border, strokeWidth: 2 } })
             })
         })
 
         setNodes(newNodes)
         setEdges(newEdges)
-    }, [events])
+        fitQueued.current = true
+    }, [setNodes, setEdges])
 
-    if (loading) {
-        return (
-            <div className="min-h-[calc(100vh-64px)] flex items-center justify-center">
-                <div className="text-center animate-pulse bg-neuravex-bg p-8 border-4 border-neuravex-border shadow-neo transform rotate-1">
-                    <div className="w-16 h-16 mx-auto bg-neuravex-accent flex items-center justify-center mb-4 border-2 border-neuravex-border shadow-neo-sm transform -rotate-3">
-                        <span className="text-2xl font-black">🧠</span>
-                    </div>
-                    <p className="text-neuravex-text text-sm font-black uppercase tracking-widest font-mono">Loading Space...</p>
-                </div>
-            </div>
-        )
-    }
+    useEffect(() => { buildLayout(events) }, [events, buildLayout])
 
-    if (error) {
-        return (
-            <div className="min-h-[calc(100vh-64px)] flex items-center justify-center">
-                <div className="bg-neuravex-pink border-4 border-neuravex-border shadow-neo p-6 max-w-md text-center transform -rotate-1">
-                    <h2 className="text-neuravex-bg font-black uppercase text-xl mb-2">System Error</h2>
-                    <p className="text-neuravex-bg text-sm font-bold font-mono">{error}</p>
-                </div>
-            </div>
-        )
-    }
+    useEffect(() => {
+        if (!fitQueued.current || nodes.length === 0 || !canvasHeight) return
+        fitQueued.current = false
+        const t = setTimeout(() => fitView({ padding: 0.15, duration: 600 }), 300)
+        return () => clearTimeout(t)
+    }, [nodes, fitView, canvasHeight])
+
+    const onNodeDragStop = useCallback((_e, node) => {
+        const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}')
+        saved[node.id] = node.position
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(saved))
+    }, [])
 
     return (
-        <div className="h-[calc(100vh-64px)] relative">
-            {/* Event count badge */}
-            <div className="absolute top-4 left-4 z-10 bg-neuravex-bg border-4 border-neuravex-border px-3 py-2 flex items-center gap-2 shadow-neo-sm transform -rotate-2">
-                <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 bg-neuravex-accent border-2 border-neuravex-border shadow-neo-sm animate-pulse" />
-                <span className="text-[10px] sm:text-xs font-mono font-bold text-neuravex-text tracking-widest uppercase">
-                    {events.length} events
-                </span>
-            </div>
-
-            {/* Legend */}
-            <div className="absolute bottom-4 left-4 z-10 bg-neuravex-bg border-4 border-neuravex-border p-3 space-y-2 shadow-neo-sm transform rotate-1">
-                {[
-                    { label: 'Critical', color: '#ff4757' }, // Red
-                    { label: 'High', color: '#ffa502' },    // Orange
-                    { label: 'Medium', color: '#3498db' },  // Blue
-                    { label: 'Low', color: '#2ecc71' },     // Green
-                ].map((item) => (
-                    <div key={item.label} className="flex items-center gap-2">
-                        <div className="w-3 h-3 sm:w-4 sm:h-4 border-2 border-neuravex-border shadow-neo-sm" style={{ background: item.color }} />
-                        <span className="text-[10px] sm:text-xs font-mono font-bold uppercase text-neuravex-text tracking-wider">{item.label}</span>
-                    </div>
-                ))}
-            </div>
-
+        <div style={{ width: '100%', height: canvasHeight || '100%' }}>
             <ReactFlow
                 nodes={nodes}
                 edges={edges}
                 onNodesChange={onNodesChange}
                 onEdgesChange={onEdgesChange}
+                onNodeDragStop={onNodeDragStop}
                 nodeTypes={nodeTypes}
-                fitView
-                fitViewOptions={{ padding: 0.3 }}
-                minZoom={0.3}
-                maxZoom={2}
+                panOnScroll={false}
+                panOnDrag={true}
+                zoomOnPinch={true}
+                zoomOnScroll={false}
+                preventScrolling={true}
+                fitView={false}
+                minZoom={0.05}
+                maxZoom={3}
                 proOptions={{ hideAttribution: true }}
-                className="bg-transparent"
             >
-                <Background color="#000000" gap={32} size={2} variant="dots" />
-                <Controls className="react-flow-controls-neo" style={{
-                    backgroundColor: '#ffffff', border: '2px solid #000000', borderRadius: '0', boxShadow: '4px 4px 0 #000000'
-                }} />
-                <MiniMap
-                    nodeStrokeColor={(n) => {
-                        if (n.type === 'categoryNode') return n.data.color?.border || '#eee'
-                        if (n.type === 'eventNode') return n.data.event?.color?.border || '#eee'
-                        return '#e8a838'
-                    }}
-                    nodeColor={(n) => {
-                        if (n.type === 'categoryNode') return n.data.color?.bg || '#fff'
-                        if (n.type === 'eventNode') return n.data.event?.color?.bg || '#fff'
-                        return '#0d2b2b'
-                    }}
-                    nodeBorderRadius={0}
-                    style={{ backgroundColor: '#ffffff', border: '4px solid #000000', borderRadius: '0', boxShadow: '4px 4px 0 #000000' }}
-                />
+                <Background color="#00000025" gap={24} size={1.5} variant="dots" />
+                <Controls style={{ backgroundColor: '#fff', border: '2px solid #000', borderRadius: 0, boxShadow: '3px 3px 0 #000' }} />
+                <MiniMap className="hidden md:block" nodeBorderRadius={0} style={{ backgroundColor: '#fff', border: '2px solid #000', borderRadius: 0 }} />
             </ReactFlow>
+        </div>
+    )
+}
+
+// ── Page outer wrapper ───────────────────────────────────────────────────────
+export default function Mindmap() {
+    const [events, setEvents] = useState([])
+    const [loading, setLoading] = useState(true)
+    const [error, setError] = useState(null)
+    const navRef = useRef(null)
+    const [canvasHeight, setCanvasHeight] = useState(0)
+    const [resetKey, setResetKey] = useState(0)
+
+    // Compute canvas height = window.innerHeight – nav element height
+    useLayoutEffect(() => {
+        function measure() {
+            const navEl = document.querySelector('nav')
+            const navH = navEl ? navEl.getBoundingClientRect().height : 0
+            setCanvasHeight(window.innerHeight - navH)
+        }
+        measure()
+        window.addEventListener('resize', measure)
+        return () => window.removeEventListener('resize', measure)
+    }, [])
+
+    useEffect(() => {
+        supabase.from('events').select('*').order('event_datetime', { ascending: true })
+            .then(({ data, error: e }) => {
+                if (e) setError(e.message)
+                else setEvents(data || [])
+                setLoading(false)
+            })
+    }, [])
+
+    const handleReset = () => {
+        localStorage.removeItem(STORAGE_KEY)
+        setResetKey((k) => k + 1)
+    }
+
+    const canvasStyle = {
+        width: '100%',
+        height: canvasHeight > 0 ? `${canvasHeight}px` : '100vh',
+        position: 'relative',
+    }
+
+    return (
+        <div style={canvasStyle}>
+            {/* Top bar */}
+            <div style={{ position: 'absolute', top: 12, left: 0, right: 0, zIndex: 10, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 12px', pointerEvents: 'none' }}>
+                <div style={{ pointerEvents: 'auto' }} className="bg-neuravex-bg border-2 border-neuravex-border px-2 py-1 flex items-center gap-1.5 shadow-neo-sm">
+                    <div className="w-1.5 h-1.5 bg-black animate-pulse" />
+                    <span className="text-[9px] sm:text-[11px] font-mono font-black text-neuravex-text tracking-widest uppercase">{events.length} events</span>
+                </div>
+                <button
+                    onClick={handleReset}
+                    style={{ pointerEvents: 'auto' }}
+                    className="bg-neuravex-pink text-white font-black uppercase text-[9px] sm:text-[11px] px-2.5 py-1.5 border-2 border-neuravex-border shadow-neo-sm transition-all hover:-translate-y-0.5"
+                >
+                    ↺ Reset
+                </button>
+            </div>
+
+            {/* Priority legend — bottom-RIGHT to avoid overlapping controls */}
+            <div style={{ position: 'absolute', bottom: 8, right: 8, zIndex: 20, pointerEvents: 'none' }}>
+                <div className="bg-neuravex-bg border-2 border-neuravex-border px-2 py-2 shadow-neo-sm flex flex-col gap-1.5">
+                    <p className="text-[7px] font-black uppercase tracking-widest text-neuravex-muted font-mono">Priority</p>
+                    {[
+                        { label: 'Critical', color: '#ff4757' },
+                        { label: 'High', color: '#ffa502' },
+                        { label: 'Medium', color: '#3498db' },
+                        { label: 'Low', color: '#2ecc71' },
+                    ].map((item) => (
+                        <div key={item.label} className="flex items-center gap-1.5">
+                            <div className="w-3 h-3 border-2 border-neuravex-border" style={{ background: item.color }} />
+                            <span className="text-[9px] font-black uppercase font-mono" style={{ color: item.color }}>{item.label}</span>
+                        </div>
+                    ))}
+                </div>
+            </div>
+
+            {/* Canvas content */}
+            {loading ? (
+                <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <div className="text-center animate-pulse bg-neuravex-bg p-6 border-4 border-neuravex-border shadow-neo">
+                        <p className="text-neuravex-text text-xs font-black uppercase tracking-widest font-mono">Loading Space...</p>
+                    </div>
+                </div>
+            ) : error ? (
+                <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
+                    <div className="bg-neuravex-pink border-4 border-neuravex-border shadow-neo p-5 max-w-sm w-full text-center">
+                        <h2 className="text-white font-black uppercase text-lg mb-2">Error</h2>
+                        <p className="text-white text-xs font-bold font-mono">{error}</p>
+                    </div>
+                </div>
+            ) : (
+                <ReactFlowProvider key={resetKey}>
+                    <MindmapCanvas key={resetKey} events={events} canvasHeight={canvasHeight} />
+                </ReactFlowProvider>
+            )}
         </div>
     )
 }
