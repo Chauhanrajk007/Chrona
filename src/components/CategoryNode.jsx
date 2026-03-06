@@ -5,15 +5,17 @@ export default function CategoryNode({ data }) {
 
     return (
         <div
-            className="relative px-3 sm:px-5 py-1.5 sm:py-2 transition-all duration-300 cursor-pointer flex items-center justify-center min-w-[80px] sm:min-w-[120px] bg-neuravex-surface transform -rotate-1"
+            className="relative px-4 sm:px-5 py-2 sm:py-2.5 transition-all duration-300 cursor-pointer flex items-center justify-center min-w-[90px] sm:min-w-[120px] rounded-lg"
             style={{
-                border: `3px solid ${color.border}`,
-                boxShadow: `3px 3px 0 ${color.border}`,
+                background: 'rgba(15, 25, 60, 0.8)',
+                backdropFilter: 'blur(8px)',
+                border: `2px solid ${color.border}`,
+                boxShadow: `0 0 24px ${color.border}40, 0 4px 12px rgba(0,0,0,0.3)`,
             }}
         >
             <Handle type="target" position={Position.Left} className="!bg-transparent !border-0 !w-0 !h-0" />
 
-            <h3 className="text-xs sm:text-base font-black tracking-widest uppercase text-neuravex-text" style={{ textShadow: `1px 1px 0px #ffffff, -1px -1px 0 #ffffff, 1px -1px 0 #ffffff, -1px 1px 0 #ffffff` }}>
+            <h3 className="text-xs sm:text-sm font-bold tracking-widest uppercase" style={{ color: color.border, textShadow: `0 0 12px ${color.border}60` }}>
                 {label}
             </h3>
 

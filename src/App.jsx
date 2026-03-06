@@ -12,28 +12,29 @@ const navLinks = [
 
 export default function App() {
     return (
-        <div className="flex flex-col min-h-screen min-h-dvh bg-transparent overflow-x-hidden">
+        <div className="flex flex-col min-h-screen min-h-dvh overflow-x-hidden" style={{ background: 'transparent' }}>
             <OpeningAnimation />
 
-            {/* Navigation */}
-            <nav className="flex-none sticky top-0 z-40 bg-neuravex-bg border-b-4 border-neuravex-border shadow-neo">
+            {/* ── Glass Navigation ────────────────────────── */}
+            <nav className="flex-none sticky top-0 z-40 glass-strong" style={{ borderBottom: '1px solid rgba(77, 163, 255, 0.15)' }}>
                 {/* Row 1 — Logo + status */}
-                <div className="flex items-center justify-between h-10 sm:h-14 px-3 sm:px-6 border-b-2 border-neuravex-border">
-                    <div className="flex items-center gap-1.5">
-                        <div className="w-6 h-6 sm:w-8 sm:h-8 flex items-center justify-center bg-neuravex-accent-light text-neuravex-bg text-xs sm:text-sm font-bold border-2 border-neuravex-border shadow-neo-sm transform -rotate-3">
+                <div className="flex items-center justify-between h-10 sm:h-14 px-3 sm:px-6" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                    <div className="flex items-center gap-2">
+                        <div className="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center rounded-lg text-sm font-bold text-white"
+                            style={{ background: 'linear-gradient(135deg, #4da3ff, #6366f1)', boxShadow: '0 0 12px rgba(77, 163, 255, 0.4)' }}>
                             N
                         </div>
-                        <span className="text-base sm:text-xl font-black tracking-tighter uppercase text-neuravex-text ml-0.5">
+                        <span className="text-base sm:text-lg font-bold tracking-tight text-nv-text">
                             Neuravex
                         </span>
                     </div>
                     <div className="flex items-center gap-1.5">
-                        <div className="w-2 h-2 bg-black border border-neuravex-border animate-pulse" />
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-neuravex-text">Live</span>
+                        <div className="w-2 h-2 rounded-full animate-pulse" style={{ background: '#3ddc97', boxShadow: '0 0 8px rgba(61, 220, 151, 0.5)' }} />
+                        <span className="text-[10px] font-medium text-nv-text-dim uppercase tracking-wider">Live</span>
                     </div>
                 </div>
 
-                {/* Row 2 — Nav tabs: full-width, large tap targets */}
+                {/* Row 2 — Nav tabs */}
                 <div className="flex w-full">
                     {navLinks.map((link) => (
                         <NavLink
@@ -41,11 +42,19 @@ export default function App() {
                             to={link.to}
                             end={link.to === '/'}
                             className={({ isActive }) =>
-                                `flex-1 flex flex-col items-center justify-center gap-0.5 py-2.5 sm:py-3 text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all duration-150 border-r-2 last:border-r-0 border-neuravex-border ${isActive
-                                    ? 'bg-neuravex-accent text-neuravex-bg'
-                                    : 'bg-neuravex-surface text-neuravex-text hover:bg-neuravex-card'
+                                `flex-1 flex flex-col items-center justify-center gap-0.5 py-2.5 sm:py-3 text-[10px] sm:text-xs font-semibold uppercase tracking-wider transition-all duration-200 relative ${isActive
+                                    ? 'text-nv-accent'
+                                    : 'text-nv-text-dim hover:text-nv-text'
                                 }`
                             }
+                            style={({ isActive }) => isActive ? {
+                                background: 'rgba(77, 163, 255, 0.08)',
+                                borderBottom: '2px solid #4da3ff',
+                                boxShadow: '0 2px 12px rgba(77, 163, 255, 0.15)',
+                            } : {
+                                borderRight: '1px solid rgba(255,255,255,0.04)',
+                                borderBottom: '2px solid transparent',
+                            }}
                         >
                             <span className="text-lg sm:text-xl leading-none">{link.icon}</span>
                             <span>{link.label}</span>
@@ -54,7 +63,7 @@ export default function App() {
                 </div>
             </nav>
 
-            {/* Routes — fills remaining height; each page handles its own scroll */}
+            {/* ── Routes ─────────────────────────────────── */}
             <main className="flex-1 flex flex-col overflow-x-hidden min-h-0">
                 <Routes>
                     <Route path="/" element={<Upload />} />

@@ -23,13 +23,13 @@ import CategoryNode from '../components/CategoryNode'
 const nodeTypes = { eventNode: EventNode, categoryNode: CategoryNode }
 
 const CATEGORY_COLORS = {
-    exam: { border: '#e74c3c', bg: '#e74c3c20' },
-    hackathon: { border: '#00b894', bg: '#00b89420' },
-    assignment: { border: '#e67e22', bg: '#e67e2220' },
-    meeting: { border: '#9b59b6', bg: '#9b59b620' },
-    personal: { border: '#3498db', bg: '#3498db20' },
-    reminder: { border: '#1abc9c', bg: '#1abc9c20' },
-    other: { border: '#95a5a6', bg: '#95a5a620' },
+    exam: { border: '#ff4d4d', bg: '#ff4d4d20' },
+    hackathon: { border: '#4da3ff', bg: '#4da3ff20' },
+    assignment: { border: '#ff9f43', bg: '#ff9f4320' },
+    meeting: { border: '#a78bfa', bg: '#a78bfa20' },
+    personal: { border: '#3ddc97', bg: '#3ddc9720' },
+    reminder: { border: '#38bdf8', bg: '#38bdf820' },
+    other: { border: '#94a3b8', bg: '#94a3b820' },
 }
 
 function getCategoryColor(cat) {
@@ -58,18 +58,18 @@ function MindmapCanvas({ events, canvasHeight }) {
             position: centerPos,
             data: { label: '🧠 You' },
             style: {
-                background: 'linear-gradient(135deg,#000,#374151)',
-                color: '#fff',
-                border: '3px solid #000',
+                background: 'radial-gradient(circle, #1e3a5f, #0a1128)',
+                color: '#4da3ff',
+                border: '2px solid rgba(77, 163, 255, 0.5)',
                 borderRadius: '50%',
-                width: 72,
-                height: 72,
+                width: 76,
+                height: 76,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                fontSize: '13px',
-                fontWeight: 900,
-                boxShadow: '4px 4px 0 #000',
+                fontSize: '14px',
+                fontWeight: 700,
+                boxShadow: '0 0 30px rgba(77, 163, 255, 0.35), 0 0 60px rgba(77, 163, 255, 0.1)',
             },
             draggable: true,
         })
@@ -92,7 +92,11 @@ function MindmapCanvas({ events, canvasHeight }) {
             const catPos = saved[catId] || { x: cx - 55, y: cy - 15 }
 
             newNodes.push({ id: catId, type: 'categoryNode', position: catPos, data: { label: cat, color }, draggable: true })
-            newEdges.push({ id: `e-c-${cat}`, source: 'center', target: catId, style: { stroke: color.border, strokeWidth: 3 }, animated: true })
+            newEdges.push({
+                id: `e-c-${cat}`, source: 'center', target: catId,
+                style: { stroke: color.border, strokeWidth: 2 },
+                animated: true,
+            })
 
             const spread = Math.PI / 3
             const startAngle = angle - spread / 2
@@ -105,7 +109,11 @@ function MindmapCanvas({ events, canvasHeight }) {
                 const ePos = saved[ev.id] || { x: ex - 60, y: ey - 20 }
                 const eColor = getPriorityColor(score)
                 newNodes.push({ id: ev.id, type: 'eventNode', position: ePos, data: { event: ev }, draggable: true })
-                newEdges.push({ id: `e-${cat}-${ev.id}`, source: catId, target: ev.id, animated: score > 15, style: { stroke: eColor.border, strokeWidth: 2 } })
+                newEdges.push({
+                    id: `e-${cat}-${ev.id}`, source: catId, target: ev.id,
+                    animated: score > 15,
+                    style: { stroke: eColor.border, strokeWidth: 1.5 },
+                })
             })
         })
 
@@ -116,10 +124,12 @@ function MindmapCanvas({ events, canvasHeight }) {
 
     useEffect(() => { buildLayout(events) }, [events, buildLayout])
 
+    // Always fit the full map into view after nodes load
     useEffect(() => {
         if (!fitQueued.current || nodes.length === 0 || !canvasHeight) return
         fitQueued.current = false
-        const t = setTimeout(() => fitView({ padding: 0.15, duration: 600 }), 300)
+        // Use a longer delay to ensure DOM is measured after React paints
+        const t = setTimeout(() => fitView({ padding: 0.18, duration: 500 }), 400)
         return () => clearTimeout(t)
     }, [nodes, fitView, canvasHeight])
 
@@ -148,9 +158,14 @@ function MindmapCanvas({ events, canvasHeight }) {
                 maxZoom={3}
                 proOptions={{ hideAttribution: true }}
             >
-                <Background color="#00000025" gap={24} size={1.5} variant="dots" />
-                <Controls style={{ backgroundColor: '#fff', border: '2px solid #000', borderRadius: 0, boxShadow: '3px 3px 0 #000' }} />
-                <MiniMap className="hidden md:block" nodeBorderRadius={0} style={{ backgroundColor: '#fff', border: '2px solid #000', borderRadius: 0 }} />
+                <Background color="rgba(77, 163, 255, 0.06)" gap={28} size={1} variant="dots" />
+                <Controls />
+                <MiniMap
+                    className="hidden md:block"
+                    nodeBorderRadius={4}
+                    nodeColor={() => 'rgba(77, 163, 255, 0.3)'}
+                    nodeStrokeColor={() => 'rgba(77, 163, 255, 0.5)'}
+                />
             </ReactFlow>
         </div>
     )
@@ -161,11 +176,9 @@ export default function Mindmap() {
     const [events, setEvents] = useState([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState(null)
-    const navRef = useRef(null)
     const [canvasHeight, setCanvasHeight] = useState(0)
     const [resetKey, setResetKey] = useState(0)
 
-    // Compute canvas height = window.innerHeight – nav element height
     useLayoutEffect(() => {
         function measure() {
             const navEl = document.querySelector('nav')
@@ -201,32 +214,32 @@ export default function Mindmap() {
         <div style={canvasStyle}>
             {/* Top bar */}
             <div style={{ position: 'absolute', top: 12, left: 0, right: 0, zIndex: 10, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 12px', pointerEvents: 'none' }}>
-                <div style={{ pointerEvents: 'auto' }} className="bg-neuravex-bg border-2 border-neuravex-border px-2 py-1 flex items-center gap-1.5 shadow-neo-sm">
-                    <div className="w-1.5 h-1.5 bg-black animate-pulse" />
-                    <span className="text-[9px] sm:text-[11px] font-mono font-black text-neuravex-text tracking-widest uppercase">{events.length} events</span>
+                <div style={{ pointerEvents: 'auto' }} className="glass rounded-lg px-3 py-1.5 flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full animate-pulse" style={{ background: '#4da3ff', boxShadow: '0 0 8px rgba(77, 163, 255, 0.5)' }} />
+                    <span className="text-[10px] sm:text-xs font-mono font-semibold text-nv-text tracking-wider">{events.length} events</span>
                 </div>
                 <button
                     onClick={handleReset}
                     style={{ pointerEvents: 'auto' }}
-                    className="bg-neuravex-pink text-white font-black uppercase text-[9px] sm:text-[11px] px-2.5 py-1.5 border-2 border-neuravex-border shadow-neo-sm transition-all hover:-translate-y-0.5"
+                    className="glass rounded-lg font-semibold text-[10px] sm:text-xs px-3 py-1.5 transition-all hover:-translate-y-0.5 text-nv-critical"
                 >
                     ↺ Reset
                 </button>
             </div>
 
-            {/* Priority legend — bottom-RIGHT to avoid overlapping controls */}
-            <div style={{ position: 'absolute', bottom: 8, right: 8, zIndex: 20, pointerEvents: 'none' }}>
-                <div className="bg-neuravex-bg border-2 border-neuravex-border px-2 py-2 shadow-neo-sm flex flex-col gap-1.5">
-                    <p className="text-[7px] font-black uppercase tracking-widest text-neuravex-muted font-mono">Priority</p>
+            {/* Priority legend — bottom-right; on md+ pushed up to avoid minimap overlap */}
+            <div className="absolute bottom-3 right-3 z-20 pointer-events-none md:bottom-[140px]">
+                <div className="glass rounded-lg px-3 py-2.5 flex flex-col gap-1.5">
+                    <p className="text-[8px] font-semibold uppercase tracking-widest text-nv-text-muted">Priority</p>
                     {[
-                        { label: 'Critical', color: '#ff4757' },
-                        { label: 'High', color: '#ffa502' },
-                        { label: 'Medium', color: '#3498db' },
-                        { label: 'Low', color: '#2ecc71' },
+                        { label: 'Critical', color: '#ff4d4d' },
+                        { label: 'High', color: '#ff9f43' },
+                        { label: 'Medium', color: '#4da3ff' },
+                        { label: 'Low', color: '#3ddc97' },
                     ].map((item) => (
-                        <div key={item.label} className="flex items-center gap-1.5">
-                            <div className="w-3 h-3 border-2 border-neuravex-border" style={{ background: item.color }} />
-                            <span className="text-[9px] font-black uppercase font-mono" style={{ color: item.color }}>{item.label}</span>
+                        <div key={item.label} className="flex items-center gap-2">
+                            <div className="w-2.5 h-2.5 rounded-sm" style={{ background: item.color, boxShadow: `0 0 6px ${item.color}60` }} />
+                            <span className="text-[9px] font-medium" style={{ color: item.color }}>{item.label}</span>
                         </div>
                     ))}
                 </div>
@@ -235,15 +248,16 @@ export default function Mindmap() {
             {/* Canvas content */}
             {loading ? (
                 <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <div className="text-center animate-pulse bg-neuravex-bg p-6 border-4 border-neuravex-border shadow-neo">
-                        <p className="text-neuravex-text text-xs font-black uppercase tracking-widest font-mono">Loading Space...</p>
+                    <div className="text-center glass rounded-xl p-6 shadow-glass">
+                        <div className="w-8 h-8 mx-auto rounded-full border-2 border-nv-accent/30 border-t-nv-accent animate-spin mb-3" />
+                        <p className="text-nv-text-dim text-xs font-medium tracking-wider uppercase">Loading Space...</p>
                     </div>
                 </div>
             ) : error ? (
                 <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
-                    <div className="bg-neuravex-pink border-4 border-neuravex-border shadow-neo p-5 max-w-sm w-full text-center">
-                        <h2 className="text-white font-black uppercase text-lg mb-2">Error</h2>
-                        <p className="text-white text-xs font-bold font-mono">{error}</p>
+                    <div className="glass rounded-xl p-5 max-w-sm w-full text-center shadow-glass" style={{ borderColor: 'rgba(255, 77, 77, 0.3)' }}>
+                        <h2 className="text-nv-critical font-bold text-lg mb-2">Error</h2>
+                        <p className="text-nv-text-dim text-xs font-mono">{error}</p>
                     </div>
                 </div>
             ) : (
