@@ -38,20 +38,51 @@ export default function EventNode({ data }) {
                 title={`Severity: ${event.severity_level || 'medium'}`}
             />
 
-            {/* Delete button — red X */}
-            <button
-                onClick={handleDelete}
-                className="absolute -top-2 -right-2 w-6 h-6 sm:w-7 sm:h-7 flex items-center justify-center text-xs font-bold rounded-md transition-all duration-150 hover:scale-110 z-10"
-                style={{
-                    background: 'rgba(255, 77, 77, 0.9)',
-                    color: '#fff',
-                    boxShadow: '0 0 10px rgba(255, 77, 77, 0.5)',
-                    border: '1px solid rgba(255, 77, 77, 0.6)',
-                }}
-                title="Delete event"
-            >
-                ✕
-            </button>
+            {/* Action buttons — absolute top right */}
+            <div className="absolute -top-3 -right-3 flex items-center gap-1 z-10 transition-opacity">
+                {/* Complete button */}
+                <button
+                    onClick={(e) => { e.stopPropagation(); if (data.onComplete) data.onComplete(event.id); }}
+                    className="w-6 h-6 sm:w-7 sm:h-7 flex items-center justify-center text-xs font-bold rounded-md transition-all duration-150 hover:scale-110"
+                    style={{
+                        background: 'rgba(61, 220, 151, 0.9)',
+                        color: '#fff',
+                        boxShadow: '0 0 10px rgba(61, 220, 151, 0.5)',
+                        border: '1px solid rgba(61, 220, 151, 0.6)',
+                    }}
+                    title="Complete event"
+                >
+                    ✓
+                </button>
+                {/* Reschedule button */}
+                <button
+                    onClick={(e) => { e.stopPropagation(); if (data.onReschedule) data.onReschedule(event); }}
+                    className="w-6 h-6 sm:w-7 sm:h-7 flex items-center justify-center text-[10px] font-bold rounded-md transition-all duration-150 hover:scale-110"
+                    style={{
+                        background: 'rgba(255, 159, 67, 0.9)',
+                        color: '#fff',
+                        boxShadow: '0 0 10px rgba(255, 159, 67, 0.5)',
+                        border: '1px solid rgba(255, 159, 67, 0.6)',
+                    }}
+                    title="Auto-reschedule (+2h)"
+                >
+                    🔄
+                </button>
+                {/* Delete button — red X */}
+                <button
+                    onClick={handleDelete}
+                    className="w-6 h-6 sm:w-7 sm:h-7 flex items-center justify-center text-xs font-bold rounded-md transition-all duration-150 hover:scale-110"
+                    style={{
+                        background: 'rgba(255, 77, 77, 0.9)',
+                        color: '#fff',
+                        boxShadow: '0 0 10px rgba(255, 77, 77, 0.5)',
+                        border: '1px solid rgba(255, 77, 77, 0.6)',
+                    }}
+                    title="Delete event"
+                >
+                    ✕
+                </button>
+            </div>
 
             {/* Title */}
             <h3 className="text-[10px] sm:text-xs font-semibold uppercase truncate tracking-tight text-white pr-4">

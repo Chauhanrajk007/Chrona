@@ -22,6 +22,9 @@ import {
 } from '../lib/priorityEngine'
 import EventNode from '../components/EventNode'
 import CategoryNode from '../components/CategoryNode'
+import CancelModal from '../components/CancelModal'
+import { api } from '../lib/api'
+import { rescheduleEvent, generateRescheduleMessage } from '../lib/priorityEngine'
 
 const nodeTypes = { eventNode: EventNode, categoryNode: CategoryNode }
 
@@ -42,7 +45,7 @@ function getCategoryColor(cat) {
 const STORAGE_KEY = 'chrona_mindmap_positions'
 
 // ── Inner ReactFlow component ────────────────────────────────────────────────
-function MindmapCanvas({ events, canvasHeight, onDeleteEvent }) {
+function MindmapCanvas({ events, canvasHeight, onDeleteEvent, onCompleteEvent, onRescheduleEvent }) {
     const [nodes, setNodes, onNodesChange] = useNodesState([])
     const [edges, setEdges, onEdgesChange] = useEdgesState([])
     const rfInstance = useRef(null)
@@ -114,7 +117,7 @@ function MindmapCanvas({ events, canvasHeight, onDeleteEvent }) {
                     id: ev.id,
                     type: 'eventNode',
                     position: ePos,
-                    data: { event: ev, onDelete: onDeleteEvent },
+                    data: { event: ev, onDelete: onDeleteEvent, onComplete: onCompleteEvent, onReschedule: onRescheduleEvent },
                     draggable: true,
                 })
                 newEdges.push({
@@ -176,7 +179,7 @@ function MindmapCanvas({ events, canvasHeight, onDeleteEvent }) {
 
         setNodes(newNodes)
         setEdges(newEdges)
-    }, [setNodes, setEdges, onDeleteEvent])
+    }, [setNodes, setEdges, onDeleteEvent, onCompleteEvent, onRescheduleEvent])
 
     useEffect(() => { buildLayout(events) }, [events, buildLayout])
 
@@ -236,6 +239,7 @@ export default function Mindmap() {
     const [canvasHeight, setCanvasHeight] = useState(0)
     const [resetKey, setResetKey] = useState(0)
     const [tick, setTick] = useState(0)
+    const [cancelTarget, setCancelTarget] = useState(null)
 
     // Real-time tick: re-render every 60s so node colors update live
     // Also auto-archives past events (1h grace period) to drafts table
@@ -310,20 +314,77 @@ export default function Mindmap() {
         setResetKey((k) => k + 1)
     }
 
-    const handleDeleteEvent = useCallback(async (eventId) => {
-        // Optimistically remove from UI
+    const handleDeleteConfirm = useCallback(async (eventId, reason) => {
+        const deletedEvent = events.find(e => e.id === eventId)
         setEvents((prev) => prev.filter((e) => e.id !== eventId))
-        // Remove saved position
         const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}')
         delete saved[eventId]
         localStorage.setItem(STORAGE_KEY, JSON.stringify(saved))
-        // Delete from database
-        const { error: delError } = await supabase.from('events').delete().eq('id', eventId)
-        if (delError) {
-            console.error('Delete failed:', delError.message)
-            fetchEvents() // Re-fetch on error
+        try {
+            await supabase.from('events').delete().eq('id', eventId)
+            await api.post('/api/schedule/changes', {
+                event_id: eventId,
+                change_type: 'cancelled',
+                reason: reason || 'Cancelled by user',
+                metadata: { event_title: deletedEvent?.title || 'Unknown', cancellation_reason: reason }
+            }).catch(() => {})
+        } catch (err) {
+            console.error('Delete failed:', err.message)
+            fetchEvents()
+        } finally {
+            setCancelTarget(null)
         }
-    }, [fetchEvents])
+    }, [events, fetchEvents])
+
+    const handleDeleteEvent = useCallback((eventId) => {
+        const eventToCancel = events.find(e => e.id === eventId)
+        if (eventToCancel) setCancelTarget(eventToCancel)
+    }, [events])
+
+    const handleCompleteEvent = useCallback(async (eventId) => {
+        try {
+            const completedEvent = events.find(e => e.id === eventId)
+            const { error: updateError } = await supabase
+                .from('events')
+                .update({ status: 'completed' })
+                .eq('id', eventId)
+
+            if (updateError) throw updateError
+
+            try {
+                await api.post('/api/schedule/changes', {
+                    event_id: eventId,
+                    change_type: 'completed',
+                    reason: generateRescheduleMessage(completedEvent || { title: 'Event' }, 'completed'),
+                    metadata: { event_title: completedEvent?.title || 'Unknown' },
+                })
+            } catch (logErr) { /* non-fatal */ }
+
+            setEvents(prev => prev.filter(e => e.id !== eventId))
+        } catch (error) {
+            console.error('Complete event error:', error)
+        }
+    }, [events])
+
+    const handleAutoReschedule = useCallback(async (event) => {
+        try {
+            const eventTime = dayjs(event.event_datetime)
+            const baseTime = eventTime.isAfter(dayjs()) ? eventTime : dayjs()
+            const newDateTime = baseTime.add(2, 'hour').toISOString()
+            
+            const updatedEvent = await rescheduleEvent(event.id, newDateTime, supabase)
+            setEvents(prev => prev.map(e => e.id === event.id ? updatedEvent : e))
+            
+            api.post('/api/schedule/changes', {
+                event_id: event.id,
+                change_type: 'rescheduled',
+                reason: 'Auto-rescheduled +2 hours to allow completion',
+                metadata: { event_title: updatedEvent?.title || 'Unknown', original_time: newDateTime }
+            }).catch(() => {})
+        } catch (error) {
+            console.error('Reschedule failed:', error)
+        }
+    }, [])
 
     const canvasStyle = {
         width: '100%',
@@ -333,6 +394,15 @@ export default function Mindmap() {
 
     return (
         <div style={canvasStyle}>
+            {/* Cancel Modal */}
+            {cancelTarget && (
+                <CancelModal
+                    event={cancelTarget}
+                    onClose={() => setCancelTarget(null)}
+                    onConfirm={handleDeleteConfirm}
+                />
+            )}
+
             {/* Top bar */}
             <div style={{ position: 'absolute', top: 12, left: 0, right: 0, zIndex: 10, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 12px', pointerEvents: 'none' }}>
                 <div style={{ pointerEvents: 'auto' }} className="glass rounded-lg px-3 py-1.5 flex items-center gap-2">
@@ -401,7 +471,7 @@ export default function Mindmap() {
                 </div>
             ) : (
                 <ReactFlowProvider key={`${resetKey}-${tick}`}>
-                    <MindmapCanvas events={events} canvasHeight={canvasHeight} onDeleteEvent={handleDeleteEvent} />
+                    <MindmapCanvas events={events} canvasHeight={canvasHeight} onDeleteEvent={handleDeleteEvent} onCompleteEvent={handleCompleteEvent} onRescheduleEvent={handleAutoReschedule} />
                 </ReactFlowProvider>
             )}
         </div>
