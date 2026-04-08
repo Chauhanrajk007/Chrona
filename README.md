@@ -1,2 +1,3 @@
-# Chrona
-Chrona is an AI-powered adaptive planning system that creates schedules, repairs them when disrupted, and learns user behavior over time. It focuses on consistency over perfection, tracking effort and guiding users to continue with small progress instead of abandoning their day.
+🚀 Chrona — Adaptive Planning Engine
+Chrona is an AI-powered adaptive planning system that helps users stay productive even when their plans don’t go as expected.
+Unlike traditional schedulers that assume perfect execution, Chrona is designed around real human behavior — where tasks are missed, plans break, and priorities change. Instead of letting a disrupted schedule collapse, Chrona dynamically repairs and reorganizes the day, helping users recover and continue.
