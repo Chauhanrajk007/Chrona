@@ -56,7 +56,7 @@ async def get_schedule_changes(user_id: str = Depends(get_current_user_id)):
 @router.post("/changes")
 async def log_schedule_change(req: ScheduleChangeRequest, user_id: str = Depends(get_current_user_id)):
     try:
-        VALID_TYPES = ['conflict_resolved', 'rescheduled', 'auto_moved', 'user_moved', 'completed', 'skipped']
+        VALID_TYPES = ['conflict_resolved', 'rescheduled', 'auto_moved', 'user_moved', 'completed', 'skipped', 'cancelled']
         if req.change_type not in VALID_TYPES:
             raise HTTPException(status_code=400, detail=f"Invalid change_type. Must be one of: {', '.join(VALID_TYPES)}")
             
@@ -78,4 +78,7 @@ async def log_schedule_change(req: ScheduleChangeRequest, user_id: str = Depends
             "message": "Schedule change logged"
         }
     except Exception as e:
+        import traceback
+        traceback.print_exc()
+        print(f"Exception in /changes: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
