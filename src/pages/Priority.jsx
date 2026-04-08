@@ -101,8 +101,10 @@ export default function Priority() {
                             console.error('Archive to drafts failed:', archiveErr.message)
                         }
                         const ids = expired.map(e => e.id)
-                        supabase.from('events').delete().in('id', ids).then(({ error: delErr }) => {
-                            if (delErr) console.error('Auto-cleanup failed:', delErr.message)
+                        supabase.from('schedule_changes').update({ event_id: null }).in('event_id', ids).then(() => {
+                            supabase.from('events').delete().in('id', ids).then(({ error: delErr }) => {
+                                if (delErr) console.error('Auto-cleanup failed:', delErr.message)
+                            })
                         })
                     })
                 }
@@ -118,15 +120,20 @@ export default function Priority() {
         setEvents((prev) => prev.filter((e) => e.id !== eventId))
         
         try {
+            // Nullify any existing FK references in schedule_changes before deleting
+            await supabase.from('schedule_changes')
+                .update({ event_id: null })
+                .eq('event_id', eventId)
+
             const { error: delError } = await supabase.from('events').delete().eq('id', eventId)
             if (delError) throw delError
 
             // Log cancellation if reason is provided or if just cancelled
             await api.post('/api/schedule/changes', {
-                event_id: eventId,
+                event_id: null,
                 change_type: 'cancelled',
                 reason: reason || 'Cancelled by user',
-                metadata: { event_title: deletedEvent?.title || 'Unknown', cancellation_reason: reason }
+                metadata: { original_event_id: eventId, event_title: deletedEvent?.title || 'Unknown', cancellation_reason: reason }
             }).catch(() => {})
         } catch (err) {
             console.error('Delete failed:', err.message)

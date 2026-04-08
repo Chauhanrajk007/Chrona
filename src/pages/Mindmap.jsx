@@ -316,18 +316,29 @@ export default function Mindmap() {
 
     const handleDeleteConfirm = useCallback(async (eventId, reason) => {
         const deletedEvent = events.find(e => e.id === eventId)
+
+        // Optimistic UI updates
         setEvents((prev) => prev.filter((e) => e.id !== eventId))
         const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}')
         delete saved[eventId]
         localStorage.setItem(STORAGE_KEY, JSON.stringify(saved))
+        
         try {
-            await supabase.from('events').delete().eq('id', eventId)
+            // Nullify any existing FK references in schedule_changes before deleting
+            await supabase.from('schedule_changes')
+                .update({ event_id: null })
+                .eq('event_id', eventId)
+
+            const { error: delError } = await supabase.from('events').delete().eq('id', eventId)
+            if (delError) throw delError
+
+            // Log cancellation without event_id to prevent FK violation 
             await api.post('/api/schedule/changes', {
-                event_id: eventId,
+                event_id: null,
                 change_type: 'cancelled',
                 reason: reason || 'Cancelled by user',
-                metadata: { event_title: deletedEvent?.title || 'Unknown', cancellation_reason: reason }
-            }).catch(() => {})
+                metadata: { original_event_id: eventId, event_title: deletedEvent?.title || 'Unknown', cancellation_reason: reason }
+            })
         } catch (err) {
             console.error('Delete failed:', err.message)
             fetchEvents()
