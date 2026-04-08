@@ -61,7 +61,7 @@ export default function OpeningAnimation({ onComplete }) {
                         textShadow: '0 0 40px rgba(77, 163, 255, 0.5)',
                     }}
                 >
-                    Neuravex
+                    Chrona
                 </h1>
             </div>
 

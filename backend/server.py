@@ -9,7 +9,7 @@ import json
 import tempfile
 import requests
 import google.generativeai as genai
-from fastapi import FastAPI, UploadFile, File, Form, HTTPException
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from datetime import datetime
 
@@ -34,7 +34,7 @@ genai.configure(api_key=GEMINI_API_KEY)
 # FAST API APP
 # ==============================
 
-app = FastAPI(title="Neuravex Backend", version="1.0.0")
+app = FastAPI(title="Chrona Backend", version="1.0.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -44,14 +44,20 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+from middleware.auth_middleware import AuthMiddleware
+from auth_router import router as auth_router
+
+app.add_middleware(AuthMiddleware)
+app.include_router(auth_router)
+
 # ==============================
 # GEMINI PROMPTS
 # ==============================
 
 EXTRACTION_PROMPT = """
-You are an event extraction engine.
+You are an intelligent event extraction engine with priority analysis capabilities, built specifically to help students manage their workloads and schedules.
 
-Analyze the input and extract event information.
+Analyze the input and extract event information, breaking it down into a mindmap structure, and providing actionable study steps.
 
 Return JSON in this exact format:
 
@@ -59,7 +65,12 @@ Return JSON in this exact format:
   "title": "",
   "category": "",
   "venue": "",
-  "event_datetime": ""
+  "event_datetime": "",
+  "severity_level": "",
+  "complexity_score": 0,
+  "estimated_prep_hours": 0,
+  "key_topics": [],
+  "action_items": []
 }
 
 Rules:
@@ -72,14 +83,38 @@ category must be one of:
   personal
   reminder
 
+severity_level must be one of:
+  low - routine events with minimal consequences if missed
+  medium - important events that require attention
+  high - critical events with significant impact
+  critical - urgent events with severe consequences (e.g., exams very soon), immediate attention needed
+
+complexity_score is a number from 1-10:
+  1-3: Simple tasks requiring minimal effort
+  4-6: Moderate complexity requiring focused work
+  7-10: Highly complex requiring extensive preparation
+
+estimated_prep_hours: Estimate how many hours of preparation/study this event realistically needs for a student.
+
+key_topics: Extract an array of strings representing specific sub-topics, chapters, or syllabus points to be studied. Limit to 3-5 items.
+
+action_items: Extract an array of strings representing concrete actionable steps the student must take (e.g., ["Review Chapter 5 slides", "Complete practice test", "Prepare presentation"]). Limit to 3-5 items.
+
 Convert relative times using today's date (%s):
   "today" → today's date
   "tomorrow" → tomorrow's date
+  "next week" → 7 days from now
+  "in 2 days" → 2 days from now
 
 Convert datetime to ISO format: YYYY-MM-DDTHH:MM:SS
 
 Return ONLY valid JSON.
 If a field is missing, return null for that field.
+Analyze context clues for severity:
+  - Exams mentioned with "tomorrow", "final", "important" → high/critical
+  - Assignments with close deadlines → high
+  - Hackathons → high severity, high complexity
+  - Routine meetings → low/medium
 """ % datetime.now().strftime("%Y-%m-%d")
 
 
@@ -88,7 +123,14 @@ If a field is missing, return null for that field.
 # ==============================
 
 def insert_into_supabase(event_data: dict) -> bool:
-    """Insert an event into the Supabase events table."""
+    """Insert an event into the Supabase events table.
+
+    Only inserts columns that exist in the events table:
+    title, category, venue, event_datetime, user_id, source_hash, key_topics, action_items
+
+    NOTE: severity_level, complexity_score, estimated_prep_hours are Gemini analytics fields.
+    They do NOT exist in the events table — they are returned to the frontend only.
+    """
     url = f"{SUPABASE_URL}/rest/v1/events"
 
     headers = {
@@ -98,11 +140,14 @@ def insert_into_supabase(event_data: dict) -> bool:
         "Prefer": "return=minimal",
     }
 
-    # Clean up: remove None values and ensure required fields exist
-    clean_data = {}
-    for key in ["title", "category", "venue", "event_datetime"]:
-        if key in event_data and event_data[key] is not None:
-            clean_data[key] = event_data[key]
+    # Whitelist: only columns that actually exist in the events table
+    EVENTS_COLUMNS = {"title", "category", "venue", "event_datetime", "user_id", "source_hash", "key_topics", "action_items"}
+
+    clean_data = {
+        key: value
+        for key, value in event_data.items()
+        if key in EVENTS_COLUMNS and value is not None
+    }
 
     if not clean_data.get("title"):
         raise ValueError("Extracted event has no title")
@@ -162,11 +207,12 @@ def extract_data_from_text(text: str) -> dict:
 
 @app.get("/api/health")
 async def health_check():
-    return {"status": "ok", "service": "neuravex-backend"}
+    return {"status": "ok", "service": "chrona-backend"}
 
 
 @app.post("/api/process-event")
 async def process_event(
+    request: Request,
     file: UploadFile | None = File(None),
     text: str | None = Form(None),
 ):
@@ -196,6 +242,10 @@ async def process_event(
             extracted_data = extract_data_from_text(text.strip())
         else:
             raise HTTPException(status_code=400, detail="No text or file provided")
+
+        # Inject user_id from middleware
+        if hasattr(request.state, "user_id"):
+            extracted_data["user_id"] = request.state.user_id
 
         # Insert into Supabase
         insert_into_supabase(extracted_data)
@@ -228,6 +278,11 @@ async def process_event_json(request: Request):
 
     try:
         extracted_data = extract_data_from_text(text.strip())
+        
+        # Inject user_id from middleware
+        if hasattr(request.state, "user_id"):
+            extracted_data["user_id"] = request.state.user_id
+            
         insert_into_supabase(extracted_data)
         return {
             "success": True,

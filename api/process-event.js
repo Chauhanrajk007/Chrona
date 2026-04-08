@@ -23,9 +23,9 @@ const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
 function getExtractionPrompt() {
     const today = new Date().toISOString().split('T')[0];
     return `
-You are an event extraction engine.
+You are an intelligent event extraction engine with priority analysis capabilities.
 
-Analyze the input and extract event information.
+Analyze the input and extract event information along with severity and complexity metrics.
 
 Return JSON in this exact format:
 
@@ -33,7 +33,11 @@ Return JSON in this exact format:
   "title": "",
   "category": "",
   "venue": "",
-  "event_datetime": ""
+  "event_datetime": "",
+  "severity_level": "",
+  "complexity_score": 0,
+  "estimated_prep_hours": 0,
+  "key_topics": []
 }
 
 Rules:
@@ -46,14 +50,37 @@ category must be one of:
   personal
   reminder
 
+severity_level must be one of:
+  low - routine events with minimal consequences if missed
+  medium - important events that require attention
+  high - critical events with significant impact
+  critical - urgent events with severe consequences, immediate attention needed
+
+complexity_score is a number from 1-10:
+  1-3: Simple tasks requiring minimal effort
+  4-6: Moderate complexity requiring focused work
+  7-10: Highly complex requiring extensive preparation
+
+estimated_prep_hours: Estimate how many hours of preparation/study this event needs
+
+key_topics: Extract any subjects, topics, or key areas mentioned (e.g., ["Mathematics", "Physics", "Chapter 5"])
+
 Convert relative times using today's date (${today}):
   "today" → today's date
   "tomorrow" → tomorrow's date
+  "next week" → 7 days from now
+  "in 2 days" → 2 days from now
 
 Convert datetime to ISO format: YYYY-MM-DDTHH:MM:SS
 
 Return ONLY valid JSON.
 If a field is missing, return null for that field.
+
+Analyze context clues for severity:
+  - Exams mentioned with "tomorrow", "final", "important" → high/critical
+  - Assignments with close deadlines → high
+  - Hackathons → high severity, high complexity
+  - Routine meetings → low/medium
 `;
 }
 
@@ -63,11 +90,17 @@ If a field is missing, return null for that field.
 
 async function insertIntoSupabase(eventData) {
     const cleanData = {};
-    for (const key of ['title', 'category', 'venue', 'event_datetime']) {
+    for (const key of ['title', 'category', 'venue', 'event_datetime', 'severity_level', 'complexity_score', 'estimated_prep_hours', 'status']) {
         if (eventData[key] != null) {
             cleanData[key] = eventData[key];
         }
     }
+
+    // Add defaults for missing fields
+    if (!cleanData.status) cleanData.status = 'pending';
+    if (!cleanData.severity_level) cleanData.severity_level = 'medium';
+    if (!cleanData.complexity_score) cleanData.complexity_score = 5;
+    if (!cleanData.estimated_prep_hours) cleanData.estimated_prep_hours = 2;
 
     if (!cleanData.title) {
         throw new Error('Extracted event has no title');

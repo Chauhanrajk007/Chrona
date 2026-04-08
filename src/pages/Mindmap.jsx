@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useLayoutEffect, useMemo } from 'react'
+import dayjs from 'dayjs'
 import {
     ReactFlow,
     Background,
@@ -28,7 +29,7 @@ const CATEGORY_COLORS = {
     exam: { border: '#ff4d4d', bg: '#ff4d4d20' },
     hackathon: { border: '#4da3ff', bg: '#4da3ff20' },
     assignment: { border: '#ff9f43', bg: '#ff9f4320' },
-    meeting: { border: '#a78bfa', bg: '#a78bfa20' },
+    meeting: { border: '#10b981', bg: '#10b98120' },
     personal: { border: '#3ddc97', bg: '#3ddc9720' },
     reminder: { border: '#38bdf8', bg: '#38bdf820' },
     other: { border: '#94a3b8', bg: '#94a3b820' },
@@ -38,7 +39,7 @@ function getCategoryColor(cat) {
     return CATEGORY_COLORS[(cat || 'other').toLowerCase()] || CATEGORY_COLORS.other
 }
 
-const STORAGE_KEY = 'neuravex_mindmap_positions'
+const STORAGE_KEY = 'chrona_mindmap_positions'
 
 // ── Inner ReactFlow component ────────────────────────────────────────────────
 function MindmapCanvas({ events, canvasHeight, onDeleteEvent }) {
@@ -121,6 +122,55 @@ function MindmapCanvas({ events, canvasHeight, onDeleteEvent }) {
                     animated: score > 15,
                     style: { stroke: eColor.border, strokeWidth: 1.5 },
                 })
+
+                // Collect sub-items natively extracted by backend
+                const subItems = []
+                if (ev.key_topics && Array.isArray(ev.key_topics)) {
+                    subItems.push(...ev.key_topics.map(t => ({ label: `${t}`, type: 'topic' })))
+                }
+                if (ev.action_items && Array.isArray(ev.action_items)) {
+                    subItems.push(...ev.action_items.map(t => ({ label: `${t}`, type: 'action' })))
+                }
+
+                if (subItems.length > 0) {
+                    const subSpread = Math.PI / 1.5
+                    const subStartAngle = eAngle - subSpread / 2
+                    subItems.forEach((sub, si) => {
+                        const sAngle = subItems.length === 1 ? eAngle : subStartAngle + (subSpread * si) / (subItems.length - 1)
+                        const sDist = 90 // distance from event node
+                        // Center is roughly +60, +20 inside the event node relative to top-left
+                        const sx = ex + Math.cos(sAngle) * sDist
+                        const sy = ey + Math.sin(sAngle) * sDist
+                        const subId = `sub-${ev.id}-${si}`
+                        const subPos = saved[subId] || { x: sx - 40, y: sy - 10 }
+                        
+                        newNodes.push({
+                            id: subId,
+                            type: 'default',
+                            position: subPos,
+                            data: { label: sub.label },
+                            style: {
+                                background: sub.type === 'action' ? 'rgba(255, 159, 67, 0.1)' : 'rgba(77, 163, 255, 0.1)',
+                                color: sub.type === 'action' ? '#ff9f43' : '#4da3ff',
+                                border: `1px solid ${sub.type === 'action' ? 'rgba(255, 159, 67, 0.3)' : 'rgba(77, 163, 255, 0.3)'}`,
+                                borderRadius: '8px',
+                                padding: '4px 6px',
+                                fontSize: '8px',
+                                fontWeight: 600,
+                                width: 'max-content',
+                                maxWidth: '100px',
+                                whiteSpace: 'normal',
+                                textAlign: 'center',
+                                backdropFilter: 'blur(4px)',
+                            },
+                            draggable: true,
+                        })
+                        newEdges.push({
+                            id: `e-${ev.id}-${subId}`, source: ev.id, target: subId,
+                            style: { stroke: sub.type === 'action' ? 'rgba(255, 159, 67, 0.4)' : 'rgba(77, 163, 255, 0.4)', strokeWidth: 1, strokeDasharray: '2 2' },
+                        })
+                    })
+                }
             })
         })
 
@@ -188,7 +238,7 @@ export default function Mindmap() {
     const [tick, setTick] = useState(0)
 
     // Real-time tick: re-render every 60s so node colors update live
-    // Also auto-deletes past events (1h grace period)
+    // Also auto-archives past events (1h grace period) to drafts table
     useEffect(() => {
         const cleanup = () => {
             setTick((t) => t + 1)
@@ -196,10 +246,33 @@ export default function Mindmap() {
             setEvents((prev) => {
                 const expired = prev.filter((e) => now.diff(dayjs(e.event_datetime), 'hour', true) >= 1)
                 const remaining = prev.filter((e) => now.diff(dayjs(e.event_datetime), 'hour', true) < 1)
+
+                // Archive expired events to drafts table in background
                 if (expired.length > 0) {
-                    const ids = expired.map((e) => e.id)
-                    supabase.from('events').delete().in('id', ids).then(({ error: delErr }) => {
-                        if (delErr) console.error('Auto-cleanup failed:', delErr.message)
+                    const nowISO = new Date().toISOString()
+                    const archivedEvents = expired.map(e => ({
+                        ...e,
+                        status: 'expired',
+                        archived_at: nowISO,
+                        notes: 'Automatically archived - event expired'
+                    }))
+
+                    // First, insert expired events into drafts table
+                    supabase.from('drafts').insert(archivedEvents).then(({ error: archiveErr }) => {
+                        if (archiveErr) {
+                            console.error('Archive to drafts failed:', archiveErr.message)
+                            // Fallback: still delete from events even if archiving fails
+                            const ids = expired.map(e => e.id)
+                            supabase.from('events').delete().in('id', ids).then(({ error: delErr }) => {
+                                if (delErr) console.error('Auto-cleanup failed:', delErr.message)
+                            })
+                        } else {
+                            // Only delete from events table after successful archiving
+                            const ids = expired.map(e => e.id)
+                            supabase.from('events').delete().in('id', ids).then(({ error: delErr }) => {
+                                if (delErr) console.error('Auto-cleanup failed:', delErr.message)
+                            })
+                        }
                     })
                 }
                 return remaining
@@ -284,6 +357,24 @@ export default function Mindmap() {
                     ].map((item) => (
                         <div key={item.label} className="flex items-center gap-2">
                             <div className="w-2.5 h-2.5 rounded-sm" style={{ background: item.color, boxShadow: `0 0 6px ${item.color}60` }} />
+                            <span className="text-[9px] font-medium" style={{ color: item.color }}>{item.label}</span>
+                        </div>
+                    ))}
+                </div>
+            </div>
+
+            {/* Severity legend — bottom-left */}
+            <div className="absolute bottom-3 left-3 z-20 pointer-events-none md:bottom-[140px]">
+                <div className="glass rounded-lg px-3 py-2.5 flex flex-col gap-1.5">
+                    <p className="text-[8px] font-semibold uppercase tracking-widest text-nv-text-muted">Severity</p>
+                    {[
+                        { label: 'Critical', color: '#ff4d4d' },
+                        { label: 'High', color: '#ff9f43' },
+                        { label: 'Medium', color: '#4da3ff' },
+                        { label: 'Low', color: '#3ddc97' },
+                    ].map((item) => (
+                        <div key={item.label} className="flex items-center gap-2">
+                            <div className="w-2.5 h-2.5 rounded-full" style={{ background: item.color, boxShadow: `0 0 6px ${item.color}60` }} />
                             <span className="text-[9px] font-medium" style={{ color: item.color }}>{item.label}</span>
                         </div>
                     ))}

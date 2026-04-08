@@ -8,6 +8,8 @@ import {
     enrichAndSort,
     generateAction,
     getNotificationAlert,
+    rescheduleEvent,
+    identifyReschedulingOpportunities,
 } from '../lib/priorityEngine'
 import PriorityCard from '../components/PriorityCard'
 import dayjs from 'dayjs'
@@ -36,8 +38,8 @@ export default function Priority() {
 
     useEffect(() => { fetchEvents() }, [fetchEvents])
 
-    // Real-time tick: re-render every 60s so priorities/colors/alerts update live
-    // Also auto-deletes past events (1h grace period) to keep the view clean
+    // Real-time tick: re-render every 60s so priorities/colors/alerts/update live
+    // Also auto-archives past events (1h grace period) to drafts table
     useEffect(() => {
         const cleanup = () => {
             setTick((t) => t + 1)
@@ -45,11 +47,33 @@ export default function Priority() {
             setEvents((prev) => {
                 const expired = prev.filter((e) => now.diff(dayjs(e.event_datetime), 'hour', true) >= 1)
                 const remaining = prev.filter((e) => now.diff(dayjs(e.event_datetime), 'hour', true) < 1)
-                // Delete expired events from database in background
+
+                // Archive expired events to drafts table in background
                 if (expired.length > 0) {
-                    const ids = expired.map((e) => e.id)
-                    supabase.from('events').delete().in('id', ids).then(({ error: delErr }) => {
-                        if (delErr) console.error('Auto-cleanup failed:', delErr.message)
+                    const nowISO = new Date().toISOString()
+                    const archivedEvents = expired.map(e => ({
+                        ...e,
+                        status: 'expired',
+                        archived_at: nowISO,
+                        notes: 'Automatically archived - event expired'
+                    }))
+
+                    // First, insert expired events into drafts table
+                    supabase.from('drafts').insert(archivedEvents).then(({ error: archiveErr }) => {
+                        if (archiveErr) {
+                            console.error('Archive to drafts failed:', archiveErr.message)
+                            // Fallback: still delete from events even if archiving fails
+                            const ids = expired.map(e => e.id)
+                            supabase.from('events').delete().in('id', ids).then(({ error: delErr }) => {
+                                if (delErr) console.error('Auto-cleanup failed:', delErr.message)
+                            })
+                        } else {
+                            // Only delete from events table after successful archiving
+                            const ids = expired.map(e => e.id)
+                            supabase.from('events').delete().in('id', ids).then(({ error: delErr }) => {
+                                if (delErr) console.error('Auto-cleanup failed:', delErr.message)
+                            })
+                        }
                     })
                 }
                 return remaining
@@ -67,6 +91,38 @@ export default function Priority() {
             fetchEvents()
         }
     }, [fetchEvents])
+
+    const handleCompleteEvent = useCallback(async (eventId) => {
+        try {
+            // Update the event status to 'completed'
+            const { error: updateError } = await supabase
+                .from('events')
+                .update({ status: 'completed' })
+                .eq('id', eventId)
+
+            if (updateError) throw updateError
+
+            // Remove the event from the current list
+            setEvents(prev => prev.filter(e => e.id !== eventId))
+        } catch (error) {
+            console.error('Complete event error:', error)
+            alert(`Failed to mark event as completed: ${error.message}`)
+        }
+    }, [])
+
+    const handleRescheduleEvent = useCallback(async (eventId, newDateTime) => {
+        try {
+            const updatedEvent = await rescheduleEvent(eventId, newDateTime, supabase)
+            setEvents(prev => prev.map(e => e.id === eventId ? updatedEvent : e))
+            return true
+        } catch (error) {
+            console.error('Reschedule failed:', error)
+            return false
+        }
+    }, [])
+
+    // Identify rescheduling opportunities for events that might conflict with high-priority tasks
+    const reschedulingOpportunities = identifyReschedulingOpportunities(events)
 
     // These re-compute every tick because dayjs() inside returns fresh values
     const enrichedEvents = enrichAndSort(events)
@@ -170,6 +226,64 @@ export default function Priority() {
                 ))}
             </div>
 
+            {/* Rescheduling Opportunities Banner */}
+            {reschedulingOpportunities.length > 0 && (
+                <div className="mb-6 sm:mb-8 space-y-2 animate-slide-up">
+                    {reschedulingOpportunities.map((opportunity, idx) => (
+                        <div
+                            key={idx}
+                            className="relative rounded-xl p-3 sm:p-4 overflow-hidden"
+                            style={{
+                                background: '#ff9f4312',
+                                border: '1px solid #ff9f4340',
+                                boxShadow: '0 0 24px #ff9f4315',
+                            }}
+                        >
+                            {/* Pulsing left bar */}
+                            <div
+                                className="absolute top-0 left-0 w-1.5 h-full animate-pulse"
+                                style={{ background: '#ff9f43', boxShadow: '0 0 12px #ff9f4380' }}
+                            />
+                            <div className="flex items-start gap-2.5 pl-2.5">
+                                <span className="text-xl sm:text-2xl flex-shrink-0">🔄</span>
+                                <div className="min-w-0">
+                                    <p className="text-xs sm:text-sm font-bold tracking-tight" style={{ color: '#ff9f43' }}>
+                                        Rescheduling Opportunity
+                                    </p>
+                                    <p className="text-[10px] sm:text-xs text-nv-text-dim font-mono mt-0.5 break-words">
+                                        {opportunity.suggestedReschedulings.length} lower-priority tasks could be rescheduled before "{opportunity.criticalEvent.title}"
+                                    </p>
+                                    <div className="mt-1.5 flex flex-wrap gap-1">
+                                        {opportunity.suggestedReschedulings.slice(0, 3).map((task, i) => (
+                                            <span
+                                                key={i}
+                                                className="text-[8px] px-1.5 py-0.5 rounded-full"
+                                                style={{
+                                                    background: 'rgba(255, 159, 67, 0.2)',
+                                                    color: '#ff9f43',
+                                                    border: '1px solid rgba(255, 159, 67, 0.3)'
+                                                }}
+                                            >
+                                                {task.taskTitle}
+                                            </span>
+                                        ))}
+                                        {opportunity.suggestedReschedulings.length > 3 && (
+                                            <span className="text-[8px] px-1.5 py-0.5 rounded-full" style={{
+                                                background: 'rgba(255, 159, 67, 0.2)',
+                                                color: '#ff9f43',
+                                                border: '1px solid rgba(255, 159, 67, 0.3)'
+                                            }}>
+                                                +{opportunity.suggestedReschedulings.length - 3} more
+                                            </span>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
+
             {/* View toggle */}
             <div className="flex mb-6 sm:mb-8">
                 <div className="w-full sm:w-auto flex glass rounded-xl overflow-hidden p-1" style={{ background: 'rgba(10, 17, 40, 0.6)' }}>
@@ -220,8 +334,8 @@ export default function Priority() {
                 /* RANKED / RECOMMENDED ACTIONS VIEW */
                 <div className="space-y-3 sm:space-y-4">
                     <div className="text-center mb-6">
-                        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold text-nv-purple"
-                            style={{ background: 'rgba(167, 139, 250, 0.1)', border: '1px solid rgba(167, 139, 250, 0.2)' }}>
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold text-emerald-400"
+                            style={{ background: 'rgba(52, 211, 153, 0.1)', border: '1px solid rgba(52, 211, 153, 0.2)' }}>
                             Recommended Actions
                         </span>
                     </div>

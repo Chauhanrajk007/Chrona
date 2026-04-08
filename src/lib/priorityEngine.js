@@ -1,5 +1,6 @@
 import dayjs from 'dayjs'
 
+// Base weights for each category
 const CATEGORY_WEIGHTS = {
     exam: 10,
     hackathon: 9,
@@ -7,6 +8,21 @@ const CATEGORY_WEIGHTS = {
     meeting: 6,
     personal: 4,
     reminder: 2,
+}
+
+// Severity level multipliers - affects final priority score
+const SEVERITY_MULTIPLIERS = {
+    low: 1.0,
+    medium: 1.2,
+    high: 1.5,
+    critical: 2.0,
+}
+
+// Complexity score additions to priority
+const COMPLEXITY_BONUS = {
+    low: 0,      // 1-3: no bonus
+    medium: 1,   // 4-6: +1 point
+    high: 2,     // 7-10: +2 points
 }
 
 // Study time recommendations per category (in hours)
@@ -23,6 +39,39 @@ export function getCategoryWeight(category) {
     if (!category) return 3
     const key = category.toLowerCase().trim()
     return CATEGORY_WEIGHTS[key] ?? 3
+}
+
+/**
+ * Get severity multiplier for priority calculation.
+ */
+export function getSeverityMultiplier(severity) {
+    if (!severity) return 1.0
+    const key = severity.toLowerCase().trim()
+    return SEVERITY_MULTIPLIERS[key] ?? 1.0
+}
+
+/**
+ * Get complexity bonus based on complexity score (1-10).
+ */
+export function getComplexityBonus(complexityScore) {
+    if (!complexityScore) return 0
+    if (complexityScore <= 3) return COMPLEXITY_BONUS.low
+    if (complexityScore <= 6) return COMPLEXITY_BONUS.medium
+    return COMPLEXITY_BONUS.high
+}
+
+/**
+ * Get severity color for visual indicators.
+ */
+export function getSeverityColor(severity) {
+    const colors = {
+        low: { bg: '#3ddc9720', border: '#3ddc97', text: '#3ddc97' },
+        medium: { bg: '#4da3ff20', border: '#4da3ff', text: '#4da3ff' },
+        high: { bg: '#ff9f4320', border: '#ff9f43', text: '#ff9f43' },
+        critical: { bg: '#ff475720', border: '#ff4757', text: '#ff4757' },
+    }
+    const key = (severity || 'medium').toLowerCase().trim()
+    return colors[key] || colors.medium
 }
 
 /**
@@ -45,10 +94,19 @@ export function getUrgencyScore(eventDatetime) {
 }
 
 /**
- * Calculate priorityScore = category_weight + urgency_score
+ * Calculate priorityScore = (category_weight + urgency_score + complexity_bonus) * severity_multiplier
+ * This creates a more nuanced priority system that considers:
+ * - What type of event it is (category)
+ * - How soon it's due (urgency)
+ * - How complex/difficult it is (complexity)
+ * - How severe the consequences are (severity)
  */
 export function getPriorityScore(event) {
-    return getCategoryWeight(event.category) + getUrgencyScore(event.event_datetime)
+    const baseScore = getCategoryWeight(event.category) + getUrgencyScore(event.event_datetime)
+    const complexityBonus = getComplexityBonus(event.complexity_score)
+    const severityMultiplier = getSeverityMultiplier(event.severity_level)
+
+    return Math.round((baseScore + complexityBonus) * severityMultiplier)
 }
 
 /**
@@ -176,79 +234,92 @@ function formatTimeRemaining(hours) {
 
 /**
  * Generate an action and recommendation for an event based on
- * its category and how much time remains.
+ * its category, severity, complexity and how much time remains.
  */
 export function generateAction(event) {
     const now = dayjs()
     const eventTime = dayjs(event.event_datetime)
     const hours = eventTime.diff(now, 'hour', true)
     const cat = (event.category || '').toLowerCase().trim()
+    const severity = (event.severity_level || 'medium').toLowerCase().trim()
+    const complexity = event.complexity_score || 5
     const timeStr = formatTimeRemaining(hours)
     const timeLabel = eventTime.format('h:mm A')
+
+    // Use estimated_prep_hours from event if available, otherwise use defaults
+    let prepHours = event.estimated_prep_hours || STUDY_HOURS[cat] || 2
 
     let action = ''
     let recommendation = ''
     let studyHours = null
     let icon = '📌'
 
+    // Severity-based urgency prefixes
+    const severityPrefix = {
+        critical: '🚨 CRITICAL: ',
+        high: '⚠️ URGENT: ',
+        medium: '📌 ',
+        low: '✓ ',
+    }
+
     // ---- Category-based rules ----
     if (cat === 'exam') {
         action = `Study for ${event.title}`
-        studyHours = STUDY_HOURS.exam
+        studyHours = prepHours
         icon = '📖'
 
         if (hours <= 0) {
             recommendation = 'Event has passed'
         } else if (hours < 1) {
-            recommendation = `⚠️ EXAM IN ${timeStr}! Final review only — focus on key formulas`
+            recommendation = `${severityPrefix[severity] || severityPrefix.medium}EXAM IN ${timeStr}! Final review only — focus on key formulas`
         } else if (hours < 3) {
-            recommendation = `🚨 ${timeStr} left — intensive cram session NOW (${studyHours}h recommended)`
+            recommendation = `${severityPrefix[severity] || severityPrefix.medium}${timeStr} left — intensive cram session NOW (${studyHours}h recommended)`
         } else if (hours < 6) {
-            recommendation = `🔔 ${timeStr} until exam — study immediately (${studyHours}h recommended)`
+            recommendation = `${severityPrefix[severity] || severityPrefix.medium}${timeStr} until exam — study immediately (${studyHours}h recommended)`
         } else if (hours < 12) {
-            recommendation = `📢 Exam at ${timeLabel} (${timeStr} left) — deep study session needed`
+            recommendation = `${severityPrefix[severity] || severityPrefix.medium}Exam at ${timeLabel} (${timeStr} left) — deep study session needed`
         } else if (hours < 24) {
-            recommendation = `Start preparation today — ${timeStr} remaining (${studyHours}h blocks)`
+            recommendation = `${severityPrefix[severity] || severityPrefix.medium}Start preparation today — ${timeStr} remaining (${studyHours}h blocks)`
         } else if (hours < 48) {
-            recommendation = `Plan focused revision schedule — ${timeStr} until exam`
+            recommendation = `${severityPrefix[severity] || severityPrefix.medium}Plan focused revision schedule — ${timeStr} until exam`
         } else {
-            recommendation = `Create study plan — you have ${timeStr} to prepare`
+            recommendation = `${severityPrefix[severity] || severityPrefix.medium}Create study plan — you have ${timeStr} to prepare`
         }
     } else if (cat === 'hackathon') {
         action = `Work on project: ${event.title}`
-        studyHours = STUDY_HOURS.hackathon
+        studyHours = prepHours
         icon = '🚀'
 
         if (hours <= 0) {
             recommendation = 'Event has passed'
         } else if (hours < 1) {
-            recommendation = `⚠️ STARTS IN ${timeStr}! Finalize setup and team coordination`
+            recommendation = `${severityPrefix[severity] || severityPrefix.medium}STARTS IN ${timeStr}! Finalize setup and team coordination`
         } else if (hours < 3) {
-            recommendation = `🚨 ${timeStr} left — last prep window! Review tools & plan approach`
+            recommendation = `${severityPrefix[severity] || severityPrefix.medium}${timeStr} left — last prep window! Review tools & plan approach`
         } else if (hours < 12) {
-            recommendation = `🔔 Build core features now — ${timeStr} remaining (${studyHours}h block)`
+            recommendation = `${severityPrefix[severity] || severityPrefix.medium}Build core features now — ${timeStr} remaining (${studyHours}h block)`
         } else if (hours < 24) {
-            recommendation = `Focus on MVP today — ${timeStr} left until kickoff`
+            recommendation = `${severityPrefix[severity] || severityPrefix.medium}Focus on MVP today — ${timeStr} left until kickoff`
         } else {
-            recommendation = `Plan project milestones — ${timeStr} to prepare`
+            recommendation = `${severityPrefix[severity] || severityPrefix.medium}Plan project milestones — ${timeStr} to prepare`
         }
     } else if (cat === 'assignment') {
         action = `Complete: ${event.title}`
-        studyHours = STUDY_HOURS.assignment
+        studyHours = prepHours
         icon = '✏️'
 
         if (hours <= 0) {
             recommendation = 'Past deadline'
         } else if (hours < 1) {
-            recommendation = `⚠️ DUE IN ${timeStr}! Submit immediately if ready`
+            recommendation = `${severityPrefix[severity] || severityPrefix.medium}DUE IN ${timeStr}! Submit immediately if ready`
         } else if (hours < 3) {
-            recommendation = `🚨 ${timeStr} to deadline — finish and submit NOW`
+            recommendation = `${severityPrefix[severity] || severityPrefix.medium}${timeStr} to deadline — finish and submit NOW`
         } else if (hours < 6) {
-            recommendation = `🔔 Deadline approaching — ${timeStr} left, focus intensely`
+            recommendation = `${severityPrefix[severity] || severityPrefix.medium}Deadline approaching — ${timeStr} left, focus intensely`
         } else if (hours < 24) {
-            recommendation = `Allocate ${studyHours}h focused work today — ${timeStr} remaining`
+            recommendation = `${severityPrefix[severity] || severityPrefix.medium}Allocate ${studyHours}h focused work today — ${timeStr} remaining`
         } else {
-            recommendation = `Schedule ${studyHours}h work block — ${timeStr} until deadline`
+            recommendation = `${severityPrefix[severity] || severityPrefix.medium}Schedule ${studyHours}h work block — ${timeStr} until deadline`
         }
     } else if (cat === 'meeting') {
         action = `Prepare for meeting: ${event.title}`
@@ -257,15 +328,15 @@ export function generateAction(event) {
         if (hours <= 0) {
             recommendation = 'Meeting has passed'
         } else if (hours < 0.5) {
-            recommendation = `⚠️ MEETING IN ${timeStr}! Join now or head to venue`
+            recommendation = `${severityPrefix[severity] || severityPrefix.medium}MEETING IN ${timeStr}! Join now or head to venue`
         } else if (hours < 1) {
-            recommendation = `🚨 Starting in ${timeStr} — final agenda check, be ready to join`
+            recommendation = `${severityPrefix[severity] || severityPrefix.medium}Starting in ${timeStr} — final agenda check, be ready to join`
         } else if (hours < 2) {
-            recommendation = `🔔 Meeting at ${timeLabel} (${timeStr}) — review agenda & prep notes`
+            recommendation = `${severityPrefix[severity] || severityPrefix.medium}Meeting at ${timeLabel} (${timeStr}) — review agenda & prep notes`
         } else if (hours < 24) {
-            recommendation = `Prepare discussion points today — meeting in ${timeStr}`
+            recommendation = `${severityPrefix[severity] || severityPrefix.medium}Prepare discussion points today — meeting in ${timeStr}`
         } else {
-            recommendation = `Review agenda in advance — meeting in ${timeStr}`
+            recommendation = `${severityPrefix[severity] || severityPrefix.medium}Review agenda in advance — meeting in ${timeStr}`
         }
     } else if (cat === 'personal') {
         action = `Prepare for: ${event.title}`
@@ -274,15 +345,15 @@ export function generateAction(event) {
         if (hours <= 0) {
             recommendation = 'Event has passed'
         } else if (hours < 1) {
-            recommendation = `⚠️ EVENT IN ${timeStr}! Get ready and leave now!`
+            recommendation = `${severityPrefix[severity] || severityPrefix.medium}EVENT IN ${timeStr}! Get ready and leave now!`
         } else if (hours < 2) {
-            recommendation = `🔔 Arriving soon! ${event.title} at ${timeLabel} — start getting ready`
+            recommendation = `${severityPrefix[severity] || severityPrefix.medium}Arriving soon! ${event.title} at ${timeLabel} — start getting ready`
         } else if (hours < 3) {
-            recommendation = `📢 ${timeStr} left — plan your travel / preparation time`
+            recommendation = `${severityPrefix[severity] || severityPrefix.medium}${timeStr} left — plan your travel / preparation time`
         } else if (hours < 24) {
-            recommendation = `Reminder: ${event.title} at ${timeLabel} today (${timeStr} away)`
+            recommendation = `${severityPrefix[severity] || severityPrefix.medium}Reminder: ${event.title} at ${timeLabel} today (${timeStr} away)`
         } else {
-            recommendation = `Reminder: ${eventTime.format('MMM D')} at ${timeLabel} — ${timeStr} away`
+            recommendation = `${severityPrefix[severity] || severityPrefix.medium}Reminder: ${eventTime.format('MMM D')} at ${timeLabel} — ${timeStr} away`
         }
     } else if (cat === 'reminder') {
         action = event.title
@@ -290,9 +361,9 @@ export function generateAction(event) {
         if (hours <= 0) {
             recommendation = 'Past reminder'
         } else if (hours < 1) {
-            recommendation = `⚠️ Reminder in ${timeStr}!`
+            recommendation = `${severityPrefix[severity] || severityPrefix.medium}Reminder in ${timeStr}!`
         } else {
-            recommendation = `Reminder at ${timeLabel} — ${timeStr} from now`
+            recommendation = `${severityPrefix[severity] || severityPrefix.medium}Reminder at ${timeLabel} — ${timeStr} from now`
         }
     } else {
         action = event.title
@@ -300,12 +371,17 @@ export function generateAction(event) {
         if (hours <= 0) {
             recommendation = 'Event passed'
         } else if (hours < 1) {
-            recommendation = `⚠️ Coming up in ${timeStr}! Prepare now`
+            recommendation = `${severityPrefix[severity] || severityPrefix.medium}Coming up in ${timeStr}! Prepare now`
         } else if (hours < 3) {
-            recommendation = `🔔 ${event.title} at ${timeLabel} — ${timeStr} left, get ready`
+            recommendation = `${severityPrefix[severity] || severityPrefix.medium}${event.title} at ${timeLabel} — ${timeStr} left, get ready`
         } else {
-            recommendation = `Coming up at ${timeLabel} — ${timeStr} away`
+            recommendation = `${severityPrefix[severity] || severityPrefix.medium}Coming up at ${timeLabel} — ${timeStr} away`
         }
+    }
+
+    // Add complexity note for high complexity events
+    if (complexity >= 7 && hours > 1) {
+        recommendation += ` | Complexity: ${complexity}/10 — break into smaller tasks`
     }
 
     return { action, recommendation, studyHours, icon }
@@ -317,6 +393,7 @@ export function generateAction(event) {
 export function enrichEvent(event) {
     const score = getPriorityScore(event)
     const color = getPriorityColor(score)
+    const severityColor = getSeverityColor(event.severity_level)
     const { action, recommendation, studyHours, icon } = generateAction(event)
     const alert = getNotificationAlert(event)
 
@@ -324,6 +401,7 @@ export function enrichEvent(event) {
         ...event,
         priority_score: score,
         color,
+        severityColor,
         action,
         recommendation,
         studyHours,
@@ -343,9 +421,6 @@ export function enrichAndSort(events) {
 // SCHEDULE GENERATION
 // ============================================================
 
-/**
- * Generate a recommended schedule from events.
- */
 export function generateSchedule(events) {
     const now = dayjs()
     const schedule = []
@@ -364,12 +439,24 @@ export function generateSchedule(events) {
     for (const event of prioritized) {
         if (isStudyCategory(event.category)) {
             const score = getPriorityScore(event)
-            let studyMinutes
-            if (score > 15) studyMinutes = 180
-            else if (score > 10) studyMinutes = 120
-            else if (score > 5) studyMinutes = 90
-            else studyMinutes = 60
-            allocatedStudy.set(event.id, { event, studyMinutes, allocated: 0 })
+            let studyMinutes = event.estimated_prep_hours ? event.estimated_prep_hours * 60 : 0
+            if (!studyMinutes || studyMinutes <= 0) {
+                if (score > 15) studyMinutes = 180
+                else if (score > 10) studyMinutes = 120
+                else if (score > 5) studyMinutes = 90
+                else studyMinutes = 60
+            }
+            
+            let subTasks = []
+            if (event.action_items && event.action_items.length > 0) {
+                subTasks = event.action_items
+            } else if (event.key_topics && event.key_topics.length > 0) {
+                subTasks = event.key_topics.map(t => `Review: ${t}`)
+            } else {
+                subTasks = [`Focused prep for ${event.title}`]
+            }
+
+            allocatedStudy.set(event.id, { event, studyMinutes, allocated: 0, subTasks, subTaskIndex: 0 })
         }
     }
 
@@ -393,18 +480,26 @@ export function generateSchedule(events) {
 
                 if (blockMinutes >= 15) {
                     const { action, recommendation, icon } = generateAction(study.event)
+                    
+                    const currentSubTask = study.subTasks[study.subTaskIndex % study.subTasks.length];
+                    const isLastBlock = (study.allocated + blockMinutes) >= study.studyMinutes;
+                    
+                    if (!isLastBlock && blockMinutes >= 30) {
+                        study.subTaskIndex++; 
+                    }
+
                     schedule.push({
                         id: `study-${study.event.id}-${study.allocated}`,
                         type: 'study',
-                        title: action,
+                        title: `${action} ➔ ${currentSubTask}`,
                         category: study.event.category,
                         startTime: cursor.format('h:mm A'),
                         endTime: cursor.add(blockMinutes, 'minute').format('h:mm A'),
                         startDate: cursor.format('MMM D'),
                         duration: blockMinutes,
-                        priority: getPriorityScore(study.event),
-                        action,
-                        recommendation,
+                        priority: getPriorityScore(study.event) + (isLastBlock ? 5 : 0),
+                        action: `Task: ${currentSubTask}`,
+                        recommendation: isLastBlock ? "Final review session — wrap it up!" : recommendation,
                         actionIcon: icon,
                     })
                     cursor = cursor.add(blockMinutes, 'minute')
@@ -455,4 +550,71 @@ export function generateSchedule(events) {
     }
 
     return schedule
+}
+
+/**
+ * Reschedule an event to a new time based on priority and availability
+ */
+export async function rescheduleEvent(eventId, newDateTime, supabaseClient) {
+    try {
+        // Update the event's datetime in the database
+        const { data, error } = await supabaseClient
+            .from('events')
+            .update({ event_datetime: newDateTime })
+            .eq('id', eventId)
+            .select()
+
+        if (error) throw error
+
+        return data[0]
+    } catch (error) {
+        console.error('Reschedule event error:', error)
+        throw error
+    }
+}
+
+/**
+ * Identify events that are approaching a critical deadline (e.g., exam tomorrow)
+ * and suggest rescheduling lower priority tasks to accommodate preparation
+ */
+export function identifyReschedulingOpportunities(events) {
+    const now = dayjs()
+    const opportunities = []
+
+    // Find high priority events (like exams) happening soon
+    const criticalEvents = events.filter(event => {
+        const eventTime = dayjs(event.event_datetime)
+        const hoursToEvent = eventTime.diff(now, 'hour', true)
+        const priorityScore = getPriorityScore(event)
+
+        // Look for high priority events happening within 24 hours
+        return priorityScore > 10 && hoursToEvent <= 24 && hoursToEvent > 0
+    })
+
+    // For each critical event, find lower priority tasks that could be rescheduled
+    for (const criticalEvent of criticalEvents) {
+        const criticalEventTime = dayjs(criticalEvent.event_datetime)
+
+        // Find tasks that occur before the critical event and have lower priority
+        const conflictingTasks = events.filter(event => {
+            const eventTime = dayjs(event.event_datetime)
+            const isBeforeCritical = eventTime.isBefore(criticalEventTime)
+            const hasLowerPriority = getPriorityScore(event) < getPriorityScore(criticalEvent)
+            const isFuture = eventTime.isAfter(now)
+
+            return isBeforeCritical && hasLowerPriority && isFuture
+        })
+
+        opportunities.push({
+            criticalEvent,
+            suggestedReschedulings: conflictingTasks.map(task => ({
+                taskId: task.id,
+                taskTitle: task.title,
+                currentDateTime: task.event_datetime,
+                priorityDifference: getPriorityScore(criticalEvent) - getPriorityScore(task)
+            }))
+        })
+    }
+
+    return opportunities
 }
