@@ -329,6 +329,11 @@ export default function Mindmap() {
                 .update({ event_id: null })
                 .eq('event_id', eventId)
 
+            // Delete associated schedule items to prevent FK violation
+            await supabase.from('schedule_items')
+                .delete()
+                .eq('event_id', eventId)
+
             const { error: delError } = await supabase.from('events').delete().eq('id', eventId)
             if (delError) throw delError
 
