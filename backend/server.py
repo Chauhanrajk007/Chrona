@@ -36,6 +36,15 @@ genai.configure(api_key=GEMINI_API_KEY)
 
 app = FastAPI(title="Chrona Backend", version="1.0.0")
 
+from middleware.auth_middleware import AuthMiddleware
+from auth_router import router as auth_router
+from onboarding_router import router as onboarding_router
+from schedule_router import router as schedule_router
+
+# Order matters: last-added middleware is outermost (executes first).
+# AuthMiddleware added first → inner layer.
+# CORSMiddleware added last → outermost layer → always attaches CORS headers.
+app.add_middleware(AuthMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -43,13 +52,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-from middleware.auth_middleware import AuthMiddleware
-from auth_router import router as auth_router
-from onboarding_router import router as onboarding_router
-from schedule_router import router as schedule_router
-
-app.add_middleware(AuthMiddleware)
 app.include_router(auth_router)
 app.include_router(onboarding_router)
 app.include_router(schedule_router)

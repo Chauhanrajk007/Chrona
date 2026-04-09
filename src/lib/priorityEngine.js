@@ -599,6 +599,81 @@ export async function rescheduleEvent(eventId, newDateTime, supabaseClient) {
 }
 
 /**
+ * Find the next free time slot for an event, avoiding conflicts with existing events.
+ * Scans from now until end-of-work (21:00 today, or tomorrow if past 21:00).
+ * Returns an ISO string for the best available slot.
+ *
+ * @param {Array} allEvents - all current events (to check for conflicts)
+ * @param {string} excludeEventId - event ID to exclude from conflict check (the event being rescheduled)
+ * @param {number} slotDurationMinutes - required slot duration (default 60)
+ * @param {number} workDayEndHour - hour that the work day ends (default 21 = 9 PM)
+ * @returns {string} ISO datetime string for the next free slot
+ */
+export function findNextFreeSlot(allEvents, excludeEventId = null, slotDurationMinutes = 60, workDayEndHour = 21) {
+    const now = dayjs()
+    const bufferMinutes = 30
+
+    // Start scanning from now (rounded up to next 15-min mark)
+    let scanStart = now.minute(Math.ceil(now.minute() / 15) * 15).second(0).millisecond(0)
+    if (scanStart.minute() >= 60) {
+        scanStart = scanStart.add(1, 'hour').minute(0)
+    }
+
+    // Collect occupied time ranges from other events (exclude the one being rescheduled)
+    const occupiedRanges = allEvents
+        .filter(e => e.id !== excludeEventId)
+        .filter(e => dayjs(e.event_datetime).isAfter(now.subtract(1, 'hour')))
+        .map(e => {
+            const start = dayjs(e.event_datetime).subtract(bufferMinutes, 'minute')
+            const end = dayjs(e.event_datetime).add(60 + bufferMinutes, 'minute')
+            return { start, end }
+        })
+        .sort((a, b) => a.start.valueOf() - b.start.valueOf())
+
+    // Scan up to 2 days ahead in 15-minute increments
+    const maxScanEnd = now.add(2, 'day').hour(workDayEndHour).minute(0)
+    let candidate = scanStart
+
+    while (candidate.isBefore(maxScanEnd)) {
+        const candidateHour = candidate.hour()
+
+        // Skip sleeping hours (before 7 AM)
+        if (candidateHour < 7) {
+            candidate = candidate.hour(7).minute(0)
+            continue
+        }
+
+        // Skip past work day end — jump to next morning
+        if (candidateHour >= workDayEndHour) {
+            candidate = candidate.add(1, 'day').hour(7).minute(0)
+            continue
+        }
+
+        // Check if slot end would exceed work day
+        const slotEnd = candidate.add(slotDurationMinutes, 'minute')
+        if (slotEnd.hour() >= workDayEndHour && slotEnd.date() === candidate.date()) {
+            candidate = candidate.add(1, 'day').hour(7).minute(0)
+            continue
+        }
+
+        // Check for conflicts with occupied ranges
+        const hasConflict = occupiedRanges.some(range => {
+            return candidate.isBefore(range.end) && slotEnd.isAfter(range.start)
+        })
+
+        if (!hasConflict) {
+            return candidate.toISOString()
+        }
+
+        // Move to next 15-min increment
+        candidate = candidate.add(15, 'minute')
+    }
+
+    // Fallback: if no slot found, return +2 hours from now
+    return now.add(2, 'hour').toISOString()
+}
+
+/**
  * Identify events that are approaching a critical deadline (e.g., exam tomorrow)
  * and suggest rescheduling lower priority tasks to accommodate preparation
  */

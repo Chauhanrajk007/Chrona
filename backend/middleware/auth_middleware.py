@@ -14,6 +14,9 @@ PUBLIC_PATHS = [
 
 class AuthMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
+        if request.method == "OPTIONS":
+            return await call_next(request)
+
         if any(request.url.path.startswith(p) for p in PUBLIC_PATHS):
             return await call_next(request)
 

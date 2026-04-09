@@ -13,11 +13,13 @@ import {
     detectConflicts,
     generateRescheduleMessage,
     enrichAndSortWithProfile,
+    findNextFreeSlot,
 } from '../lib/priorityEngine'
 import PriorityCard from '../components/PriorityCard'
 import ConflictNotification from '../components/ConflictNotification'
 import CancelModal from '../components/CancelModal'
 import ScheduleChangeLog from '../components/ScheduleChangeLog'
+import RescheduleModal from '../components/RescheduleModal'
 import { api } from '../lib/api'
 import dayjs from 'dayjs'
 
@@ -34,9 +36,10 @@ export default function Priority() {
     // Onboarding profile state
     const [onboardingProfile, setOnboardingProfile] = useState(null)
 
-    // Conflict & Cancel state
+    // Conflict & Cancel & Reschedule state
     const [conflicts, setConflicts] = useState([])
     const [cancelTarget, setCancelTarget] = useState(null)
+    const [rescheduleTarget, setRescheduleTarget] = useState(null)
 
     // Fetch onboarding profile
     useEffect(() => {
@@ -180,7 +183,7 @@ export default function Priority() {
         }
     }, [events])
 
-    const handleRescheduleEvent = useCallback(async (eventId, newDateTime) => {
+    const handleRescheduleEvent = useCallback(async (eventId, newDateTime, msg) => {
         try {
             const updatedEvent = await rescheduleEvent(eventId, newDateTime, supabase)
             setEvents(prev => prev.map(e => e.id === eventId ? updatedEvent : e))
@@ -189,7 +192,7 @@ export default function Priority() {
             api.post('/api/schedule/changes', {
                 event_id: eventId,
                 change_type: 'rescheduled',
-                reason: 'Auto-rescheduled +2 hours to allow completion',
+                reason: msg || 'Auto-rescheduled for better slot fitting',
                 metadata: { event_title: updatedEvent?.title || 'Unknown', original_time: newDateTime }
             }).catch(() => {})
 
@@ -214,13 +217,12 @@ export default function Priority() {
     }, [conflicts])
 
     const handleAutoReschedule = useCallback(async (event) => {
-        // Auto-reschedule to current time + 2 hours (or event time + 2 hours if in future)
-        const eventTime = dayjs(event.event_datetime)
-        const baseTime = eventTime.isAfter(dayjs()) ? eventTime : dayjs()
-        const newDateTime = baseTime.add(2, 'hour').toISOString()
+        // Auto-reschedule using intelligent free slot finder
+        const newDateTime = findNextFreeSlot(events, event.id, 60, 21)
+        const msg = generateRescheduleMessage(event, 'rescheduled')
         
-        await handleRescheduleEvent(event.id, newDateTime)
-    }, [handleRescheduleEvent])
+        await handleRescheduleEvent(event.id, newDateTime, msg)
+    }, [handleRescheduleEvent, events])
 
     // Identify rescheduling opportunities for events that might conflict with high-priority tasks
     const reschedulingOpportunities = identifyReschedulingOpportunities(events)
@@ -274,6 +276,20 @@ export default function Priority() {
                     event={cancelTarget}
                     onClose={() => setCancelTarget(null)}
                     onConfirm={handleDeleteConfirm}
+                />
+            )}
+
+            {/* Reschedule Modal */}
+            {rescheduleTarget && (
+                <RescheduleModal
+                    event={rescheduleTarget.event}
+                    conflictingEvent={rescheduleTarget.conflictingEvent}
+                    suggestedTime={findNextFreeSlot(events, rescheduleTarget.event.id, 60, 21)}
+                    onClose={() => setRescheduleTarget(null)}
+                    onRescheduled={(updatedEvent) => {
+                        setEvents(prev => prev.map(e => e.id === updatedEvent.id ? updatedEvent : e))
+                        setRescheduleTarget(null)
+                    }}
                 />
             )}
 
