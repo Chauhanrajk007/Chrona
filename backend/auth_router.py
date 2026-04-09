@@ -20,11 +20,14 @@ class LoginRequest(BaseModel):
 @router.post("/signup")
 async def signup(req: SignupRequest):
     try:
-        return auth_service.signup(
+        result = auth_service.signup(
             username=req.username,
             password=req.password,
             display_name=req.name,
         )
+        # Auto-login after signup so the client gets an access_token
+        login_result = auth_service.login(username=req.username, password=req.password)
+        return {**result, "access_token": login_result["access_token"]}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
